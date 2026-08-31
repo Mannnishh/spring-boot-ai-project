@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Author the full 18-day, self-guided curriculum document set that teaches a Spring Boot + AI (RAG) refresher project, per `docs/superpowers/specs/2026-08-31-ai-refresher-curriculum-design.md`.
+**Goal:** Author the full 21-day, self-guided curriculum document set that teaches a Spring Boot + AI (RAG) refresher project — including an advanced Java/OOP reinforcement thread — per `docs/superpowers/specs/2026-08-31-ai-refresher-curriculum-design.md`.
 
-**Architecture:** One markdown file per day (or day-range, matching the spec's grouping) under `docs/curriculum/`, plus an overview/index file. Each file is self-contained: concept primer, verified reference links, a runnable checkpoint, an exercise (worked-example-with-variation or guided-TODO-with-hints per topic novelty), an interview-angle note, and — for guided-TODO days — a clearly separated answer key at the bottom.
+**Architecture:** One markdown file per day (or day-range, matching the spec's grouping) under `docs/curriculum/`, plus an overview/index file. Each file is self-contained: concept primer, verified reference links, a runnable checkpoint, an exercise (worked-example-with-variation or guided-TODO-with-hints per topic novelty), an interview-angle note, and — for guided-TODO days — a clearly separated answer key at the bottom. Days that exercise a design pattern from Day 2's Java/OOP refresher carry a short "Java pattern note" tying the work back to it.
 
 **Tech Stack:** Markdown only. No application code is written in this plan — only curriculum content. Research is done live via WebSearch/WebFetch at authoring time (never recalled from memory) to satisfy the spec's citation policy.
 
@@ -18,6 +18,7 @@
 - Answer-key content lives in a section titled `## Answer Key (attempt it yourself first!)` at the very bottom of the file, never interleaved with the exercise prompt.
 - Deliverable directory: `docs/curriculum/`.
 - Git commit style taught and used in all example commit commands across every day: Conventional Commits (`type(scope): description`).
+- Days that exercise a pattern introduced on Day 2 (DI/IoC, Strategy, Builder, Decorator) include a short `**Java pattern note:**` line connecting the day's work back to that vocabulary — this is a sentence or two, not a re-teach.
 - Target pacing is ~6 hours per day of content — a guide for depth, not a hard word count.
 
 ---
@@ -26,17 +27,19 @@
 
 - Create: `docs/curriculum/00-overview.md` — goal, prerequisites, how to use the curriculum, full schedule table, link index to every day file.
 - Create: `docs/curriculum/01-day1-git-and-style.md`
-- Create: `docs/curriculum/02-day2-crud-docker.md`
-- Create: `docs/curriculum/03-day3-groq-embeddings-hello-world.md`
-- Create: `docs/curriculum/04-day4-rag-fundamentals.md`
-- Create: `docs/curriculum/05-06-file-upload-tika.md`
-- Create: `docs/curriculum/07-09-chunking-embedding-pipeline.md`
-- Create: `docs/curriculum/10-13-ask-endpoint-rag-pipeline.md`
-- Create: `docs/curriculum/14-rate-limit-resilience.md`
-- Create: `docs/curriculum/15-jwt-security.md`
-- Create: `docs/curriculum/16-frontend-api-docs-polish.md`
-- Create: `docs/curriculum/17-readme-demo-prep.md`
-- Create: `docs/curriculum/18-buffer-mock-interview.md`
+- Create: `docs/curriculum/02-day2-java-oop-refresher.md`
+- Create: `docs/curriculum/03-day3-crud-docker.md`
+- Create: `docs/curriculum/04-day4-groq-embeddings-hello-world.md`
+- Create: `docs/curriculum/05-day5-rag-fundamentals.md`
+- Create: `docs/curriculum/06-07-file-upload-tika.md`
+- Create: `docs/curriculum/08-10-chunking-embedding-pipeline.md`
+- Create: `docs/curriculum/11-14-ask-endpoint-rag-pipeline.md`
+- Create: `docs/curriculum/15-rate-limit-resilience.md`
+- Create: `docs/curriculum/16-jwt-security.md`
+- Create: `docs/curriculum/17-frontend-api-docs-polish.md`
+- Create: `docs/curriculum/18-readme-demo-prep.md`
+- Create: `docs/curriculum/19-oop-retrospective.md`
+- Create: `docs/curriculum/20-21-buffer-mock-interview.md`
 
 Each day file is independent (no shared code/imports), so tasks can run in any order except Task 1 (overview), which should be written first since its schedule table and link index are fixed by this plan regardless of day-file content, and revisited last for a consistency check.
 
@@ -49,20 +52,20 @@ Each day file is independent (no shared code/imports), so tasks can run in any o
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: links to all 12 day files below (paths are fixed by this plan, so they can be written now even though the files don't exist yet).
+- Produces: links to all 14 day files below (paths are fixed by this plan, so they can be written now even though the files don't exist yet).
 
 - [ ] **Step 1: Draft the overview content**
 
 Write `docs/curriculum/00-overview.md` containing:
-- One-paragraph goal statement: build a document-Q&A (RAG) app with Spring Boot, ending demo-ready for interviews.
-- Prerequisites section: rusty-but-present Java/Spring familiarity assumed; no prior AI/ML experience assumed; Docker installed; a Groq API key and a Gemini or Hugging Face API key (link both signup pages — verify via WebFetch in Step 2).
-- "How to use this curriculum" section explaining: one file per day, each with a primer/links/checkpoint/exercise/interview-angle, guided-TODO days have a hidden-below answer key — attempt before reading it.
-- Full schedule table (reproduce the 18-day table from the spec's "18-day schedule" section verbatim).
-- Link index: a markdown list linking to each of the 12 day files by their exact relative paths (`01-day1-git-and-style.md`, `02-day2-crud-docker.md`, `03-day3-groq-embeddings-hello-world.md`, `04-day4-rag-fundamentals.md`, `05-06-file-upload-tika.md`, `07-09-chunking-embedding-pipeline.md`, `10-13-ask-endpoint-rag-pipeline.md`, `14-rate-limit-resilience.md`, `15-jwt-security.md`, `16-frontend-api-docs-polish.md`, `17-readme-demo-prep.md`, `18-buffer-mock-interview.md`).
+- One-paragraph goal statement: build a document-Q&A (RAG) app with Spring Boot, ending demo-ready for interviews, while reinforcing advanced Java/OOP habits from day one.
+- Prerequisites section: rusty-but-present Java/Spring familiarity assumed; no prior AI/ML experience assumed; Docker installed (Windows: WSL2 backend, covered on Day 3); a Groq API key and a Gemini or Hugging Face API key (link both signup pages — verify via WebFetch in Step 2); IntelliJ IDEA Community Edition (or VS Code + Java/Spring extensions) as the recommended IDE.
+- "How to use this curriculum" section explaining: one file per day, each with a primer/links/checkpoint/exercise/interview-angle, guided-TODO days have a hidden-below answer key — attempt before reading it, and days that build on Day 2's Java/OOP material carry a short "Java pattern note."
+- Full schedule table (reproduce the 21-day table from the spec's "21-day schedule" section verbatim).
+- Link index: a markdown list linking to each of the 14 day files by their exact relative paths (`01-day1-git-and-style.md`, `02-day2-java-oop-refresher.md`, `03-day3-crud-docker.md`, `04-day4-groq-embeddings-hello-world.md`, `05-day5-rag-fundamentals.md`, `06-07-file-upload-tika.md`, `08-10-chunking-embedding-pipeline.md`, `11-14-ask-endpoint-rag-pipeline.md`, `15-rate-limit-resilience.md`, `16-jwt-security.md`, `17-frontend-api-docs-polish.md`, `18-readme-demo-prep.md`, `19-oop-retrospective.md`, `20-21-buffer-mock-interview.md`).
 
 - [ ] **Step 2: Verify prerequisite links**
 
-Use WebFetch on the Groq console signup/API-keys page and the Gemini API (or Hugging Face inference API) signup/docs page. Confirm both resolve and are the correct official pages before linking them.
+Use WebFetch on the Groq console signup/API-keys page, the Gemini API (or Hugging Face inference API) signup/docs page, and the IntelliJ IDEA Community download page. Confirm all resolve and are the correct official pages before linking them.
 
 - [ ] **Step 3: Commit**
 
@@ -73,7 +76,7 @@ git commit -m "docs: add curriculum overview and schedule index"
 
 ---
 
-### Task 2: Day 1 — Git/branching/style + CRUD skeleton start
+### Task 2: Day 1 — Git/branching/style + IDE setup + CRUD skeleton start
 
 **Files:**
 - Create: `docs/curriculum/01-day1-git-and-style.md`
@@ -104,7 +107,7 @@ Write `docs/curriculum/01-day1-git-and-style.md` with:
   1. Install IntelliJ IDEA Community Edition (or confirm VS Code + Java/Spring extensions if going that route).
   2. `git init` (if not already) and create a `.gitignore` covering `.env`, `target/`/`build/`, `.idea/`/`.vscode/`.
   3. Create a `feature/project-skeleton` branch.
-  4. Use Spring Initializr (web UI, `curl start.spring.io`, or IntelliJ's built-in "New Project" Spring Initializr wizard) to generate a skeleton with Web, JPA, PostgreSQL driver, and pgvector-compatible dependencies (note: exact pgvector dependency is finalized on Day 2 — Day 1 just needs Web + JPA + Postgres driver).
+  4. Use Spring Initializr (web UI, `curl start.spring.io`, or IntelliJ's built-in "New Project" Spring Initializr wizard) to generate a skeleton with Web, JPA, PostgreSQL driver, and pgvector-compatible dependencies (note: exact pgvector dependency is finalized on Day 3 — Day 1 just needs Web + JPA + Postgres driver).
   5. Add the chosen formatter (Spotless or Google Java Format) to the build file with a `check`/`apply` task, run it once.
   6. Commit the skeleton on the feature branch using a Conventional Commits-formatted message (e.g. `feat: scaffold spring boot project skeleton`).
 - **Checkpoint:** `git log --oneline` shows at least one commit on `feature/project-skeleton` matching the Conventional Commits `type: description` format; running the formatter's check task exits 0.
@@ -119,15 +122,68 @@ Re-fetch every URL included in the drafted file; confirm HTTP 200 and that the f
 
 ```bash
 git add docs/curriculum/01-day1-git-and-style.md
-git commit -m "docs: add day 1 curriculum (git workflow, style tooling, skeleton start)"
+git commit -m "docs: add day 1 curriculum (git workflow, style tooling, IDE setup, skeleton start)"
 ```
 
 ---
 
-### Task 3: Day 2 — Finish CRUD skeleton + Docker Compose
+### Task 3: Day 2 — Advanced Java/OOP refresher
 
 **Files:**
-- Create: `docs/curriculum/02-day2-crud-docker.md`
+- Create: `docs/curriculum/02-day2-java-oop-refresher.md`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: the pattern vocabulary (SOLID, DI/IoC, Strategy, Builder, Decorator) that Tasks 4, 8, 9, and 10's "Java pattern note" sections reference by name — those tasks assume the reader already has this file's definitions, so keep the terminology exact and stable.
+
+- [ ] **Step 1: Research and verify reference links**
+
+WebSearch + WebFetch for real, official/authoritative sources on:
+- SOLID principles — a well-established reference (e.g. the original sources are Robert C. Martin's writings; an acceptable verified secondary source is a widely-cited, accurate summary page — verify it's accurate against the actual principles, not a garbled paraphrase).
+- Java interfaces vs. abstract classes — Oracle's official Java Tutorials/Java Language Specification docs (`docs.oracle.com`).
+- Java Generics — Oracle's official Java Tutorials generics trail (`docs.oracle.com`).
+- Java Streams and `Optional` — Oracle's official `java.util.stream` and `java.util.Optional` Javadoc.
+- Java exception hierarchy (checked vs. unchecked) — Oracle's official Java Tutorials exceptions trail.
+- The Strategy, Builder, and Decorator design patterns — a reputable, accurate reference for each (the original *Design Patterns* (Gang of Four) book is the canonical source; if citing a web page instead, verify it correctly describes the pattern's intent, not a mislabeled variant).
+- Spring's official docs on Dependency Injection / Inversion of Control (`docs.spring.io` Spring Framework core reference, IoC container chapter) — this is the concrete IoC example used in this file and referenced again on Day 3.
+
+- [ ] **Step 2: Draft the content**
+
+Write `docs/curriculum/02-day2-java-oop-refresher.md` with:
+- **Concept primer**, organized in this order:
+  1. SOLID principles, each with a one-sentence definition and a short example grounded in a Spring web app context (e.g. Single Responsibility: a controller shouldn't also contain persistence logic).
+  2. Interfaces vs. abstract classes — when to reach for each; composition over inheritance as the general preference.
+  3. Generics — why `List<Document>` is safer than a raw `List`, with a short generic method example.
+  4. Streams, lambdas, and `Optional` — a before/after showing an imperative loop rewritten as a stream pipeline, and `Optional` replacing a null-return pattern.
+  5. Exception hierarchy design — checked vs. unchecked, when to define a custom exception (e.g. a `DocumentNotFoundException`) vs. reuse a built-in one.
+  6. A short preview (definitions only, not full examples — those come later) of the Strategy, Builder, and Decorator patterns, explicitly flagged as "you'll implement each of these for real in this project: Strategy on Day 8-10, Builder on Day 11-14, Decorator on Day 15."
+  7. Dependency Injection as a concrete instance of Inversion of Control — the one pattern shown with a full worked example here (a small interface + two implementations + constructor injection), since Day 3 assumes he recognizes it immediately when Spring does it for him.
+- **Reference links:** every source from Step 1.
+- **Exercise (worked example + variation, standalone — genuinely new/rusty material, not yet wired into the Spring project):**
+  1. Provide a small standalone worked example: an interface `Notifier` with two implementations (`EmailNotifier`, `SmsNotifier`), and a class that takes a `Notifier` via constructor injection rather than instantiating one directly — demonstrating DI/IoC without Spring's container.
+  2. **Variation task:** have him add a third implementation (`ConsoleNotifier`) and swap it in without touching the consuming class, then write one sentence explaining which SOLID principle this demonstrates (Open/Closed).
+  3. **Variation task:** rewrite a small provided imperative loop (filtering and transforming a `List<String>`) as a Stream pipeline, and rewrite a provided method that returns `null` on a missing case to return `Optional<T>` instead.
+- **Checkpoint:** the `ConsoleNotifier` swap compiles and runs without modifying the consuming class's source; the stream/`Optional` rewrites produce identical output to the originals.
+- **Interview angle:** "What does Inversion of Control mean, and how does Spring implement it?" — he now has a hand-built example to point to before Day 3 shows Spring doing the same thing automatically via `@Autowired`/constructor injection.
+- **Answer key:** not needed — these are worked examples with variations, not blank-page TODOs (per the exercise-style split, worked-example days don't carry a separate answer key section).
+
+- [ ] **Step 3: Verify all embedded links resolve**
+
+Re-fetch every URL; confirm HTTP 200 and correct content.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/curriculum/02-day2-java-oop-refresher.md
+git commit -m "docs: add day 2 curriculum (advanced Java/OOP refresher)"
+```
+
+---
+
+### Task 4: Day 3 — Finish CRUD skeleton + Docker Compose
+
+**Files:**
+- Create: `docs/curriculum/03-day3-crud-docker.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -142,10 +198,11 @@ WebSearch + WebFetch for official sources on:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/02-day2-crud-docker.md` with:
+Write `docs/curriculum/03-day3-crud-docker.md` with:
 - **Concept primer:** what pgvector adds to plain Postgres (a vector column type + similarity search operators), why running Postgres via Docker Compose instead of a local install.
-- **Windows setup primer (new subsection, since he has little Docker/WSL context):** a short, plain-language explanation of what WSL2 is (a real Linux kernel running alongside Windows) and why Docker Desktop on Windows needs it (containers are Linux processes; WSL2 is what actually runs them — Docker Desktop is the UI/orchestration on top). Step-by-step: enable WSL2 (`wsl --install` from an admin PowerShell, reboot if prompted), install Docker Desktop, confirm in Docker Desktop's Settings that the WSL2-based engine is selected (not the legacy Hyper-V backend). Note this is one-time setup, not something he'll touch again after Day 2.
+- **Windows setup primer (since he has little Docker/WSL context):** a short, plain-language explanation of what WSL2 is (a real Linux kernel running alongside Windows) and why Docker Desktop on Windows needs it (containers are Linux processes; WSL2 is what actually runs them — Docker Desktop is the UI/orchestration on top). Step-by-step: enable WSL2 (`wsl --install` from an admin PowerShell, reboot if prompted), install Docker Desktop, confirm in Docker Desktop's Settings that the WSL2-based engine is selected (not the legacy Hyper-V backend). Note this is one-time setup, not something he'll touch again after today.
 - **Reference links:** from Step 1, verified URLs, including the two Windows/WSL2 links.
+- **Java pattern note:** Spring's `@Autowired`/constructor injection of the repository into the controller is the same Dependency Injection/Inversion of Control pattern hand-built on Day 2 — Spring's container is just doing automatically what he wired manually there.
 - **Exercise (guided TODO + hints):**
   1. Verify Docker works at all: `docker run hello-world` should pull and run successfully before continuing.
   2. Define a simple domain entity relevant to the eventual RAG app (e.g. `Document` with id/filename/uploadedAt) with a JPA repository.
@@ -163,16 +220,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/02-day2-crud-docker.md
-git commit -m "docs: add day 2 curriculum (CRUD skeleton, docker compose, pgvector)"
+git add docs/curriculum/03-day3-crud-docker.md
+git commit -m "docs: add day 3 curriculum (CRUD skeleton, docker compose, pgvector)"
 ```
 
 ---
 
-### Task 4: Day 3 — Groq + embeddings provider hello-world connectivity
+### Task 5: Day 4 — Groq + embeddings provider hello-world connectivity
 
 **Files:**
-- Create: `docs/curriculum/03-day3-groq-embeddings-hello-world.md`
+- Create: `docs/curriculum/04-day4-groq-embeddings-hello-world.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -184,7 +241,7 @@ WebSearch + WebFetch for official sources on:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/03-day3-groq-embeddings-hello-world.md` with:
+Write `docs/curriculum/04-day4-groq-embeddings-hello-world.md` with:
 - **Concept primer:** Groq serves an OpenAI-compatible chat completions API (fast inference, generous free tier, no embeddings endpoint); embeddings need a second provider.
 - **Reference links:** verified URLs from Step 1.
 - **Exercise (worked example + variation, genuinely new territory):**
@@ -202,16 +259,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/03-day3-groq-embeddings-hello-world.md
-git commit -m "docs: add day 3 curriculum (Groq + embeddings hello world)"
+git add docs/curriculum/04-day4-groq-embeddings-hello-world.md
+git commit -m "docs: add day 4 curriculum (Groq + embeddings hello world)"
 ```
 
 ---
 
-### Task 5: Day 4 — RAG fundamentals deep-dive
+### Task 6: Day 5 — RAG fundamentals deep-dive
 
 **Files:**
-- Create: `docs/curriculum/04-day4-rag-fundamentals.md`
+- Create: `docs/curriculum/05-day5-rag-fundamentals.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -223,11 +280,11 @@ WebSearch + WebFetch for official/authoritative sources on:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/04-day4-rag-fundamentals.md` with:
+Write `docs/curriculum/05-day5-rag-fundamentals.md` with:
 - **Concept primer:** the RAG pattern end-to-end (why it beats stuffing everything into one prompt or fine-tuning for this use case); what an embedding vector represents; why cosine similarity (not Euclidean distance) is the standard similarity metric for text embeddings; chunking trade-offs (too small loses context, too large dilutes relevance and wastes tokens).
 - **Reference links:** verified URLs from Step 1.
 - **Exercise (worked example + variation, standalone — not yet wired into Spring):**
-  1. Provide a small standalone script (plain Java `main` method or a scratch class, no Spring needed) that takes two hardcoded short text strings, calls the Day 3 embeddings endpoint/logic for both, and computes cosine similarity between the two vectors by hand (show the formula implemented directly, not via a library, so the math is visible).
+  1. Provide a small standalone script (plain Java `main` method or a scratch class, no Spring needed) that takes two hardcoded short text strings, calls the Day 4 embeddings endpoint/logic for both, and computes cosine similarity between the two vectors by hand (show the formula implemented directly, not via a library, so the math is visible).
   2. **Variation task:** have him run it against three text pairs he writes himself — one near-duplicate pair, one same-topic-different-wording pair, one unrelated pair — and record the three similarity scores, building intuition for what the numbers mean.
   3. Briefly show (as a worked example, no exercise) a naive fixed-size chunking function on a paragraph of text, and discuss what breaks if a chunk boundary falls mid-sentence.
 - **Checkpoint:** the standalone script runs and prints three similarity scores where the near-duplicate pair scores highest and the unrelated pair scores lowest.
@@ -240,16 +297,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/04-day4-rag-fundamentals.md
-git commit -m "docs: add day 4 curriculum (RAG fundamentals deep-dive)"
+git add docs/curriculum/05-day5-rag-fundamentals.md
+git commit -m "docs: add day 5 curriculum (RAG fundamentals deep-dive)"
 ```
 
 ---
 
-### Task 6: Day 5-6 — File upload + Tika extraction
+### Task 7: Day 6-7 — File upload + Tika extraction
 
 **Files:**
-- Create: `docs/curriculum/05-06-file-upload-tika.md`
+- Create: `docs/curriculum/06-07-file-upload-tika.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -260,13 +317,13 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/05-06-file-upload-tika.md` with:
+Write `docs/curriculum/06-07-file-upload-tika.md` with:
 - **Concept primer:** why extraction is needed before chunking/embedding (raw PDFs/DOCX aren't plain text); what Tika abstracts away (format detection + parsing across many file types).
 - **Reference links:** verified URLs from Step 1.
 - **Exercise (guided TODO + hints, builds on familiar Spring MVC patterns):**
   1. Add the Tika dependency (verified coordinates).
   2. Scaffold a `POST /documents/upload` endpoint accepting `MultipartFile`, with the extraction call left as a TODO (hint: `new Tika().parseToString(inputStream)`).
-  3. Scaffold persisting the extracted text alongside the `Document` entity from Day 2 (add a `content` column) — leave the repository save call as a TODO.
+  3. Scaffold persisting the extracted text alongside the `Document` entity from Day 3 (add a `content` column) — leave the repository save call as a TODO.
 - **Checkpoint:** `curl -F file=@sample.pdf localhost:8080/documents/upload` returns the created `Document` with non-empty extracted text; a `.txt` and a `.pdf` sample both work.
 - **Interview angle:** "How do you handle unstructured/heterogeneous input formats?" — Tika's format auto-detection as the answer.
 - **Answer key:** full controller method body and entity/repository wiring.
@@ -278,37 +335,38 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/05-06-file-upload-tika.md
-git commit -m "docs: add day 5-6 curriculum (file upload, Tika extraction)"
+git add docs/curriculum/06-07-file-upload-tika.md
+git commit -m "docs: add day 6-7 curriculum (file upload, Tika extraction)"
 ```
 
 ---
 
-### Task 7: Day 7-9 — Chunking + embedding pipeline → pgvector
+### Task 8: Day 8-10 — Chunking + embedding pipeline → pgvector
 
 **Files:**
-- Create: `docs/curriculum/07-09-chunking-embedding-pipeline.md`
+- Create: `docs/curriculum/08-10-chunking-embedding-pipeline.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
 WebSearch + WebFetch for:
 - pgvector's official README/docs (`github.com/pgvector/pgvector`) for the `vector` column type, distance operators (`<=>` for cosine), and index types (IVFFlat/HNSW).
 - Spring Data JPA custom-query docs for how to run a native query with the `vector` type from a repository.
-- Spring AI's `TokenTextSplitter` docs (if using it) or, if hand-rolling chunking, no library citation needed there — but still cite the general chunking-strategy reference already verified on Day 4 (link back to it rather than re-verifying).
+- Spring AI's `TokenTextSplitter` docs (if using it) or, if hand-rolling chunking, no library citation needed there — but still cite the general chunking-strategy reference already verified on Day 5 (link back to it rather than re-verifying).
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/07-09-chunking-embedding-pipeline.md` with:
+Write `docs/curriculum/08-10-chunking-embedding-pipeline.md` with:
 - **Concept primer:** the pipeline shape (extracted text → chunks → each chunk embedded → stored with a foreign key back to its source document); why storing chunk-level (not document-level) embeddings is what enables precise retrieval + citation later.
-- **Reference links:** verified URLs from Step 1, plus an internal link back to Day 4's chunking discussion.
-- **Exercise (guided TODO + hints for the Spring/persistence wiring; worked example for the pgvector-specific query since it's new):**
-  1. Add a `Chunk` entity (`id`, `documentId`, `content`, `embedding vector(N)`) where `N` is the verified dimension from Day 3 — TODO the entity fields with hints.
-  2. TODO a chunking function (fixed-size with overlap, per Day 4's discussion) — hint at the overlap parameter's purpose.
-  3. TODO a pipeline method: for each chunk, call the embeddings provider, persist the `Chunk` row.
+- **Reference links:** verified URLs from Step 1, plus an internal link back to Day 5's chunking discussion.
+- **Java pattern note:** define a `ChunkingStrategy` interface (e.g. `List<String> chunk(String text)`) with a `FixedSizeChunkingStrategy` implementation — this is the Strategy pattern previewed on Day 2, now used for real so a second strategy (e.g. sentence-aware chunking) could be swapped in later without touching the pipeline.
+- **Exercise (guided TODO + hints for the Spring/persistence wiring; worked example for the pgvector-specific query and the Strategy interface since both are new):**
+  1. **Worked example:** the `ChunkingStrategy` interface + `FixedSizeChunkingStrategy` implementation (with an overlap parameter), shown in full — this is the Day 2 pattern applied for real, not a blank-page exercise.
+  2. Add a `Chunk` entity (`id`, `documentId`, `content`, `embedding vector(N)`) where `N` is the verified dimension from Day 4 — TODO the entity fields with hints.
+  3. TODO a pipeline method: for each chunk (using the injected `ChunkingStrategy`), call the embeddings provider, persist the `Chunk` row.
   4. **Worked example:** show the full native pgvector similarity query (`ORDER BY embedding <=> :queryVector LIMIT :k`) as a `@Query` in the repository, since the syntax is unfamiliar territory, not something to leave as a blank-page TODO.
 - **Checkpoint:** after uploading a multi-paragraph document, a manual query (`SELECT count(*) FROM chunk WHERE document_id = ...`) shows multiple chunk rows, each with a non-null `embedding`; a manual similarity query against a hardcoded query vector returns rows ordered by distance.
 - **Interview angle:** "How would you scale vector search beyond a few thousand rows?" — mention IVFFlat/HNSW indexing from the pgvector docs as the next step, even though this project's dataset is small enough not to need it.
-- **Answer key:** full `Chunk` entity, chunking function, and pipeline method.
+- **Answer key:** full `Chunk` entity and pipeline method (the `ChunkingStrategy` interface/implementation and the similarity query are already shown as worked examples above, not repeated in the answer key).
 
 - [ ] **Step 3: Verify all embedded links resolve**
 
@@ -317,16 +375,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/07-09-chunking-embedding-pipeline.md
-git commit -m "docs: add day 7-9 curriculum (chunking + embedding pipeline)"
+git add docs/curriculum/08-10-chunking-embedding-pipeline.md
+git commit -m "docs: add day 8-10 curriculum (chunking strategy pattern + embedding pipeline)"
 ```
 
 ---
 
-### Task 8: Day 10-13 — /ask endpoint (RAG pipeline) + iteration
+### Task 9: Day 11-14 — /ask endpoint (RAG pipeline) + iteration
 
 **Files:**
-- Create: `docs/curriculum/10-13-ask-endpoint-rag-pipeline.md`
+- Create: `docs/curriculum/11-14-ask-endpoint-rag-pipeline.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -336,19 +394,20 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/10-13-ask-endpoint-rag-pipeline.md` with:
-- **Concept primer:** assembling the full pipeline (embed the question → pgvector similarity search from Day 7-9 → build a prompt that includes the top-k chunks with their source document names → call Groq → parse/return the answer plus which documents were cited).
-- **Reference links:** verified URLs from Step 1, plus internal links back to Day 3 (Groq calls) and Day 7-9 (similarity query).
+Write `docs/curriculum/11-14-ask-endpoint-rag-pipeline.md` with:
+- **Concept primer:** assembling the full pipeline (embed the question → pgvector similarity search from Day 8-10 → build a prompt that includes the top-k chunks with their source document names → call Groq → parse/return the answer plus which documents were cited).
+- **Reference links:** verified URLs from Step 1, plus internal links back to Day 4 (Groq calls) and Day 8-10 (similarity query).
+- **Java pattern note:** a `PromptBuilder` (or similar) that assembles the system instruction, retrieved-context block, and question step by step before producing the final prompt string is the Builder pattern previewed on Day 2 — useful here because the prompt has several optional/ordered parts that are easier to reason about assembled incrementally than as one giant string-concatenation.
 - **Exercise (guided TODO + hints — this composes prior building blocks rather than introducing new unfamiliar concepts):**
   1. Scaffold `POST /ask` accepting `{ "question": "..." }`.
-  2. TODO: embed the question (reuse Day 3's embedding call).
-  3. TODO: run the Day 7-9 similarity query for top-k chunks.
-  4. TODO: build a prompt template that instructs the model to answer only from the provided context and cite source filenames — give the prompt's required *shape* (system instruction + context block + question) as a hint, leave exact wording to him.
-  5. TODO: call Groq via the Day 3 chat client, return `{ answer, citedDocuments: [...] }`.
-- **Iteration sub-section** (explicitly covering the extra day): guidance on what to tune if answers are poor — chunk size/overlap (back to Day 7-9), top-k value, prompt wording strictness — framed as a debugging checklist, not new code.
+  2. TODO: embed the question (reuse Day 4's embedding call).
+  3. TODO: run the Day 8-10 similarity query for top-k chunks.
+  4. TODO: implement a small `PromptBuilder` (per the Java pattern note above) with chainable steps (e.g. `.withSystemInstruction(...)`, `.withContext(chunks)`, `.withQuestion(question)`, `.build()`) that instructs the model to answer only from the provided context and cite source filenames — give the builder's method signatures as scaffolding, leave the exact prompt wording to him.
+  5. TODO: call Groq via the Day 4 chat client, return `{ answer, citedDocuments: [...] }`.
+- **Iteration sub-section** (explicitly covering the extra days): guidance on what to tune if answers are poor — chunk size/overlap (back to Day 8-10), top-k value, prompt wording strictness — framed as a debugging checklist, not new code.
 - **Checkpoint:** `curl -X POST localhost:8080/ask -d '{"question": "..."}'` against a known uploaded document returns an answer whose content is verifiably grounded in that document, with at least one cited filename matching the uploaded document.
 - **Interview angle:** "How do you keep an LLM from hallucinating facts not in your data?" — the grounding/citation prompt pattern as the direct answer.
-- **Answer key:** one full worked prompt template and the complete endpoint method.
+- **Answer key:** one full worked `PromptBuilder` implementation with example prompt wording, and the complete endpoint method.
 
 - [ ] **Step 3: Verify all embedded links resolve**
 
@@ -357,16 +416,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/10-13-ask-endpoint-rag-pipeline.md
-git commit -m "docs: add day 10-13 curriculum (/ask RAG pipeline + iteration)"
+git add docs/curriculum/11-14-ask-endpoint-rag-pipeline.md
+git commit -m "docs: add day 11-14 curriculum (/ask RAG pipeline, prompt builder, iteration)"
 ```
 
 ---
 
-### Task 9: Day 14 — Rate-limit/retry resilience
+### Task 10: Day 15 — Rate-limit/retry resilience
 
 **Files:**
-- Create: `docs/curriculum/14-rate-limit-resilience.md`
+- Create: `docs/curriculum/15-rate-limit-resilience.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -376,9 +435,10 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/14-rate-limit-resilience.md` with:
+Write `docs/curriculum/15-rate-limit-resilience.md` with:
 - **Concept primer:** free-tier APIs throttle (requests/min, tokens/min); a 429 response needs graceful backoff, not a crash or a silent bad answer.
 - **Reference links:** verified URLs from Step 1.
+- **Java pattern note:** a retry wrapper around the Groq/embeddings client — adding retry-with-backoff behavior around an existing call without changing its interface — is the Decorator pattern previewed on Day 2 (whether implemented by hand or via `@Retryable`'s proxy-based decoration, the shape is the same: wrap, don't rewrite).
 - **Exercise (guided TODO + hints — familiar Spring pattern, new only in what it's applied to):**
   1. Add the retry library dependency.
   2. TODO: wrap the Groq and embeddings calls with retry + exponential backoff on 429/5xx, with a max-attempts cap.
@@ -394,16 +454,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/14-rate-limit-resilience.md
-git commit -m "docs: add day 14 curriculum (rate-limit/retry resilience)"
+git add docs/curriculum/15-rate-limit-resilience.md
+git commit -m "docs: add day 15 curriculum (rate-limit/retry resilience, decorator pattern)"
 ```
 
 ---
 
-### Task 10: Day 15 — Spring Security (JWT) [optional]
+### Task 11: Day 16 — Spring Security (JWT) [optional]
 
 **Files:**
-- Create: `docs/curriculum/15-jwt-security.md`
+- Create: `docs/curriculum/16-jwt-security.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -413,7 +473,7 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/15-jwt-security.md` with a clear **"Optional — cut this day first if you're behind schedule"** banner at the top.
+Write `docs/curriculum/16-jwt-security.md` with a clear **"Optional — cut this day first if you're behind schedule"** banner at the top.
 - **Concept primer:** stateless auth via JWT — what's in a token, why signature verification replaces server-side session lookup.
 - **Reference links:** verified URLs from Step 1.
 - **Exercise (guided TODO + hints):**
@@ -430,16 +490,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/15-jwt-security.md
-git commit -m "docs: add day 15 curriculum (JWT security, optional)"
+git add docs/curriculum/16-jwt-security.md
+git commit -m "docs: add day 16 curriculum (JWT security, optional)"
 ```
 
 ---
 
-### Task 11: Day 16 — Frontend or Swagger/Postman polish
+### Task 12: Day 17 — Frontend or Swagger/Postman polish
 
 **Files:**
-- Create: `docs/curriculum/16-frontend-api-docs-polish.md`
+- Create: `docs/curriculum/17-frontend-api-docs-polish.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -449,7 +509,7 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/16-frontend-api-docs-polish.md` presenting **two options** (his choice, not a TODO he must both complete):
+Write `docs/curriculum/17-frontend-api-docs-polish.md` presenting **two options** (his choice, not a TODO he must both complete):
 - **Option A (lower effort, recommended given the timeline):** add springdoc-openapi, verify Swagger UI renders all endpoints built so far, annotate `/ask` and `/documents/upload` with example request/response bodies.
 - **Option B (more polish, more time):** a minimal single-page frontend (plain HTML/JS, no framework needed) with an upload form and a question box calling `/ask`.
 - **Reference links:** verified URLs from Step 1.
@@ -463,16 +523,16 @@ Re-fetch every URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/16-frontend-api-docs-polish.md
-git commit -m "docs: add day 16 curriculum (Swagger/Postman or frontend polish)"
+git add docs/curriculum/17-frontend-api-docs-polish.md
+git commit -m "docs: add day 17 curriculum (Swagger/Postman or frontend polish)"
 ```
 
 ---
 
-### Task 12: Day 17 — README, sample-question cache, demo dataset prep
+### Task 13: Day 18 — README, sample-question cache, demo dataset prep
 
 **Files:**
-- Create: `docs/curriculum/17-readme-demo-prep.md`
+- Create: `docs/curriculum/18-readme-demo-prep.md`
 
 - [ ] **Step 1: Research and verify reference links**
 
@@ -482,7 +542,7 @@ WebSearch + WebFetch for:
 
 - [ ] **Step 2: Draft the content**
 
-Write `docs/curriculum/17-readme-demo-prep.md` with:
+Write `docs/curriculum/18-readme-demo-prep.md` with:
 - **Concept primer:** why a demo needs a curated, *small* dataset and a few pre-validated questions — free-tier rate limits mean an interview-time live query against a huge corpus risks a slow or throttled response; a small known-good demo set avoids that.
 - **Reference links:** verified URL from Step 1.
 - **Exercise (guided TODO + hints):**
@@ -499,43 +559,82 @@ Re-fetch the README-guide URL; confirm HTTP 200 and correct content.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/curriculum/17-readme-demo-prep.md
-git commit -m "docs: add day 17 curriculum (README, sample Q&A cache, demo prep)"
+git add docs/curriculum/18-readme-demo-prep.md
+git commit -m "docs: add day 18 curriculum (README, sample Q&A cache, demo prep)"
 ```
 
 ---
 
-### Task 13: Day 18 — Buffer + mock interview run-through
+### Task 14: Day 19 — Java/OOP + design-patterns retrospective
 
 **Files:**
-- Create: `docs/curriculum/18-buffer-mock-interview.md`
+- Create: `docs/curriculum/19-oop-retrospective.md`
+
+**Interfaces:**
+- Consumes: the pattern vocabulary from Task 3 (Day 2) and the four "Java pattern note" call-outs from Tasks 4, 8, 9, and 10 — this file explicitly references all four by day number.
+
+- [ ] **Step 1: Research and verify reference links**
+
+WebSearch + WebFetch for:
+- The Factory Method and Adapter design patterns (not previewed on Day 2, introduced fresh here) — a reputable, accurate reference for each (same sourcing standard as Day 2: canonical *Design Patterns* (Gang of Four) description, or a verified-accurate web summary).
+
+- [ ] **Step 2: Draft the content**
+
+Write `docs/curriculum/19-oop-retrospective.md` with:
+- **Concept primer:** no new theory beyond Factory/Adapter — this day is a deliberate pause to connect theory (Day 2) to the four places it showed up in practice (Day 3's DI/IoC, Day 8-10's Strategy, Day 11-14's Builder, Day 15's Decorator), then apply one more pattern for the first time.
+- **Reference links:** the two new pattern references from Step 1, plus internal links back to Days 2, 3, 8-10, 11-14, and 15.
+- **Retrospective exercise (no code, reflection-based):** a short worksheet-style list — for each of the four patterns already used, he writes one sentence naming where it appeared and why that shape was chosen over the naive alternative (e.g. "why a `ChunkingStrategy` interface instead of an `if/else` on a chunking-mode flag").
+- **Refactor exercise (guided TODO + hints, new pattern applied for real):**
+  1. Concept: right now the embeddings provider (Gemini or Hugging Face, from Day 4) is called directly wherever it's needed. Introduce an `EmbeddingProvider` interface with the current provider as one implementation.
+  2. TODO: extract the existing embeddings-calling code behind this interface, with the concrete implementation selected via a simple Factory method (or Spring's own bean selection, if he prefers using `@Qualifier`/profiles instead of a hand-rolled factory — note both are valid, the point is the interface boundary, not which selection mechanism).
+  3. **Checkpoint:** the `/ask` and ingestion pipeline code no longer references the concrete provider class directly — only the `EmbeddingProvider` interface — verified by grepping for the concrete class name outside the new implementation/factory files.
+- **Interview angle:** "How would you support a second LLM or embeddings provider without touching the `/ask` endpoint?" — this day produces a direct, demonstrable answer (the `EmbeddingProvider` interface boundary), not a hypothetical.
+- **Answer key:** full `EmbeddingProvider` interface, the extracted implementation, and the factory/selection code.
+
+- [ ] **Step 3: Verify all embedded links resolve**
+
+Re-fetch every URL; confirm HTTP 200 and correct content.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/curriculum/19-oop-retrospective.md
+git commit -m "docs: add day 19 curriculum (OOP/design-patterns retrospective and refactor)"
+```
+
+---
+
+### Task 15: Day 20-21 — Buffer + mock interview run-through
+
+**Files:**
+- Create: `docs/curriculum/20-21-buffer-mock-interview.md`
 
 - [ ] **Step 1: Draft the content**
 
-Write `docs/curriculum/18-buffer-mock-interview.md` with:
-- **Purpose statement:** this day has no new material — it exists to absorb slippage from prior days and to rehearse presenting the project.
-- **Buffer guidance:** a short checklist of what to do if behind ("first cut Day 15 JWT, then trim Day 16 to Swagger-only, then reduce Day 17's sample question count") pointing back at the days already marked optional/cuttable.
-- **Mock interview run-through:** a structured self-run exercise — set a 10-15 minute timer, walk through: (1) architecture overview out loud, (2) live demo of upload + ask, (3) answer 3 prepared "gotcha" questions collected from every prior day's "Interview angle" note (he should compile these himself by skimming back through Days 1-17 — this is the exercise, not a TODO to fill in code).
+Write `docs/curriculum/20-21-buffer-mock-interview.md` with:
+- **Day 20 — Purpose statement:** no new material — exists to absorb slippage from any prior day.
+- **Day 20 — Buffer guidance:** a short checklist of what to do if behind ("first cut Day 16 JWT, then trim Day 17 to Swagger-only, then reduce Day 18's sample question count") pointing back at the days already marked optional/cuttable.
+- **Day 21 — Mock interview run-through:** a structured self-run exercise — set a 10-15 minute timer, walk through: (1) architecture overview out loud, including how the OOP/design-pattern choices from Days 2-19 shaped it, (2) live demo of upload + ask, (3) answer 3 prepared "gotcha" questions collected from every prior day's "Interview angle" note (he should compile these himself by skimming back through Days 1-19 — this is the exercise, not a TODO to fill in code).
 - **Checkpoint:** he completes one full run-through under time without needing to check notes for the live demo steps.
-- No reference links required — this day is process, not new technical content.
+- No reference links required — these two days are process, not new technical content.
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/curriculum/18-buffer-mock-interview.md
-git commit -m "docs: add day 18 curriculum (buffer day, mock interview run-through)"
+git add docs/curriculum/20-21-buffer-mock-interview.md
+git commit -m "docs: add day 20-21 curriculum (buffer day, mock interview run-through)"
 ```
 
 ---
 
-### Task 14: Cross-file consistency pass
+### Task 16: Cross-file consistency pass
 
 **Files:**
 - Modify: `docs/curriculum/00-overview.md` (only if inconsistencies are found)
 
 - [ ] **Step 1: Read every file in `docs/curriculum/`**
 
-Confirm: every day file follows the structure (primer, links, checkpoint, exercise, interview angle, answer key where applicable); every internal cross-reference (e.g. Day 7-9 linking back to Day 4) points to the correct actual filename; the overview's link index and schedule table match the files that actually exist; no file contains "TBD"/"TODO" language outside of intentional exercise-scaffolding TODOs.
+Confirm: every day file follows the structure (primer, links, checkpoint, exercise, interview angle, answer key where applicable); every internal cross-reference (e.g. Day 8-10 linking back to Day 5, or Day 19 referencing Days 2/3/8-10/11-14/15) points to the correct actual filename and day number; the "Java pattern note" terminology (SOLID, DI/IoC, Strategy, Builder, Decorator, Factory, Adapter) is used consistently with how Day 2 and Day 19 define it; the overview's link index and schedule table match the files that actually exist; no file contains "TBD"/"TODO" language outside of intentional exercise-scaffolding TODOs.
 
 - [ ] **Step 2: Fix any drift found, then commit if changes were made**
 
