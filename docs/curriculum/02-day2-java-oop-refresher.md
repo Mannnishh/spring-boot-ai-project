@@ -146,17 +146,33 @@ bite you daily:
    `String` into a `List<Document>` and it won't compile. Put one into
    a raw `List` and it compiles fine, then throws `ClassCastException`
    at some unrelated line, at runtime, in production.
-2. **Elimination of casts.** The tutorial's own comparison:
+2. **Elimination of casts.** The tutorial's own comparison — *before*,
+   with a raw `List`:
 
    ```java
+   import java.util.ArrayList;
+   import java.util.List;
+
    List list = new ArrayList();
    list.add("hello");
    String s = (String) list.get(0);   // cast required
+   ```
+
+   and *after*, with a parameterized one:
+
+   ```java
+   import java.util.ArrayList;
+   import java.util.List;
 
    List<String> list = new ArrayList<String>();
    list.add("hello");
    String s = list.get(0);            // no cast
    ```
+
+   (These are two alternatives, not two steps — they declare the same
+   `list` and `s` names, so try one or the other, not both in the same
+   scope. The `import` lines go at the top of the file; the three
+   statements go inside a method body.)
 
 3. **Enabling generic algorithms** — one implementation that works over
    collections of different types, type-safely.
@@ -248,6 +264,9 @@ static List<String> normalizeLongTitles(List<String> titles) {
 }
 ```
 
+(As with the pairs below, these are two versions of the *same* method —
+the second replaces the first, they can't coexist in one class.)
+
 Read the pipeline top to bottom and it states *what* happens; the loop
 states *how*. Two mechanical notes:
 [`Stream.toList()`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html)
@@ -273,8 +292,10 @@ to remember a null check that the compiler will never demand.
 `Optional<Document> findByTitle(String)` cannot be dereferenced without
 first dealing with the empty case.
 
+Before — the "null means not found" convention:
+
 ```java
-// Before — the "null means not found" convention
+// requires: java.util.List (field `documents` is a List<Document>)
 public Document findByTitle(String title) {
     for (Document d : documents) {
         if (d.title().equals(title)) {
@@ -283,14 +304,22 @@ public Document findByTitle(String title) {
     }
     return null;
 }
+```
 
-// After — the absence is part of the type
+After — the absence is part of the type:
+
+```java
+// requires: java.util.List, java.util.Optional
 public Optional<Document> findByTitle(String title) {
     return documents.stream()
             .filter(d -> d.title().equals(title))
             .findFirst();
 }
 ```
+
+(These are two versions of the *same* method — same name, same
+parameter, so the same erasure. The second replaces the first; they
+can't coexist in one class.)
 
 Callers then choose their own handling, without a null check in sight:
 
@@ -757,67 +786,100 @@ point.
 Two small rewrites. The requirement in both cases is **identical
 observable behavior** — same output, same ordering.
 
-**(a) Loop → stream pipeline.** Here is the imperative version. Put it
-in a `Titles.java` with a `main` that exercises it, run it, and record
-the output.
+Both use one shared record. Put it in its own file:
 
 ```java
+// Document.java
+public record Document(String title, int pageCount) {}
+```
+
+**(a) Loop → stream pipeline.** This one is deliberately *not* the
+title-normalization example from section 4 — that one is already solved
+up there, and copying it back down here would teach you nothing. This
+is a different shape: filter a `List<Document>` on two conditions, sort
+the survivors, then extract a field into a formatted label.
+
+Put this in `Catalog.java`, run it, and record the output.
+
+```java
+// Catalog.java
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-public class Titles {
+public class Catalog {
 
-    public static List<String> normalizeLongTitles(List<String> titles) {
-        List<String> result = new ArrayList<>();
-        for (String title : titles) {
-            String trimmed = title.trim();
-            if (trimmed.length() > 10) {
-                result.add(trimmed.toUpperCase(Locale.ROOT));
+    /** Long policy documents, largest first, as display labels. */
+    public static List<String> policyLabels(List<Document> docs) {
+        List<Document> matches = new ArrayList<>();
+        for (Document d : docs) {
+            if (d.title().startsWith("policy-") && d.pageCount() >= 5) {
+                matches.add(d);
             }
         }
-        return result;
+        matches.sort((a, b) -> Integer.compare(b.pageCount(), a.pageCount()));
+
+        List<String> labels = new ArrayList<>();
+        for (Document d : matches) {
+            labels.add(d.title() + " (" + d.pageCount() + "p)");
+        }
+        return labels;
     }
 
     public static void main(String[] args) {
-        List<String> input = List.of(
-                "  onboarding checklist  ",
-                "short",
-                "remote work policy",
-                "  api  ",
-                "incident response runbook");
-        System.out.println(normalizeLongTitles(input));
+        List<Document> docs = List.of(
+                new Document("policy-onboarding", 7),
+                new Document("runbook-incident-response", 25),
+                new Document("policy-expense-reimbursement", 4),
+                new Document("policy-remote-work", 12),
+                new Document("changelog-api", 31));
+        System.out.println(policyLabels(docs));
     }
 }
 ```
 
-Run it with `javac Titles.java && java Titles`. Expected output:
+Run it with `javac Document.java Catalog.java && java Catalog`.
+Expected output:
 
 ```
-[ONBOARDING CHECKLIST, REMOTE WORK POLICY, INCIDENT RESPONSE RUNBOOK]
+[policy-remote-work (12p), policy-onboarding (7p)]
 ```
 
-Rewrite `normalizeLongTitles` as a single stream pipeline using
-`map`/`filter`/`toList`, keeping the stages in the same order as the
-loop, and confirm the printed list is character-for-character the same.
-*Watch out for:* trimming after filtering instead of before would
-change which titles qualify — `"  onboarding checklist  "` is 24
-characters untrimmed and 20 trimmed, so it survives either way, but
-`"  api  "` is 7 untrimmed and 3 trimmed, and a title of length 11 with
-two leading spaces would flip. Order of stages is part of the
-behavior.
+Trace why, before you rewrite anything: `runbook-incident-response` and
+`changelog-api` are dropped by the prefix test;
+`policy-expense-reimbursement` passes the prefix test but is dropped by
+the page-count test (4 < 5); and the sort genuinely reorders — the two
+survivors arrive in the order 7 then 12 and leave as 12 then 7.
+
+Now rewrite `policyLabels` as a single stream pipeline that returns the
+same list. You need four stages: `filter` (you can use one `filter`
+with `&&`, or two chained — both are correct, and two is usually easier
+to read), `sorted`, `map`, and `toList`.
+
+*The one piece worth a hint*, because it's the only part you can't get
+to from section 4: `sorted` takes a `Comparator`, and you don't have to
+write one by hand —
+[`Comparator.comparingInt`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html)
+builds one from a key extractor, and every `Comparator` has a
+`reversed()`. That's the same `Comparator` interface from the Strategy
+preview in section 6: you're selecting a sorting algorithm's ordering
+by passing in a strategy object rather than by editing the sort. You'll
+need `import java.util.Comparator;`.
+
+*Watch out for:* `List.of(...)` returns an immutable list, which is why
+the imperative version copies into an `ArrayList` before calling
+`sort`. A stream's `sorted` has no such problem — it never touches the
+source. And note the sort must stay *between* the filtering and the
+label-building: sorting formatted strings instead of documents would
+order them alphabetically by title, not numerically by page count.
 
 **(b) `null` return → `Optional<T>`.** Here is a repository that uses
 the null convention.
 
 ```java
-// Document.java — one public top-level type per file, so the
-// package-private DocumentRepository can live alongside it here.
+// DocumentRepository.java
 import java.util.List;
 
-public record Document(String title, int pageCount) {}
-
-class DocumentRepository {
+public class DocumentRepository {
 
     private final List<Document> documents = List.of(
             new Document("handbook", 42),
@@ -873,9 +935,10 @@ You're done with Day 2 when all four of these hold:
    day.
 2. `ConsoleNotifier.java` carries a one-sentence comment naming the
    Open/Closed Principle and saying why it applies.
-3. The stream version of `normalizeLongTitles` prints exactly the same
-   list as the loop version did, for the same input —
-   `[ONBOARDING CHECKLIST, REMOTE WORK POLICY, INCIDENT RESPONSE RUNBOOK]`.
+3. The stream version of `policyLabels` prints exactly the same list as
+   the loop version did, for the same input —
+   `[policy-remote-work (12p), policy-onboarding (7p)]` — and the method
+   body contains no `for` loop and no intermediate `ArrayList`.
 4. `findByTitle` returns `Optional<Document>`, every call site is free
    of `== null` checks, the two printed page counts are still `42` and
    `0`, and the `orElseThrow` call site reports the missing title by
