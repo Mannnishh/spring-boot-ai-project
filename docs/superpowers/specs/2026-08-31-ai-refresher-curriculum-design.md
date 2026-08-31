@@ -1,0 +1,134 @@
+# Spring Boot + AI Refresher — Learning Curriculum Design
+
+## Purpose
+
+Produce a self-contained, written curriculum document set that a friend (rusty
+on both Spring Boot and AI/ML fundamentals) can follow independently to build
+a document-Q&A (RAG) application, ending with a live-demo-ready project he can
+speak to in interviews. This spec covers the *curriculum's* design — not the
+application's implementation plan, which is authored separately once this
+spec is approved.
+
+## Audience & constraints
+
+- **Learner:** the user's friend. Rusty on Spring Boot; new/rusty on AI/RAG
+  concepts (embeddings, vector search, prompt construction).
+- **Timeline:** 18 days, ~6 hours/day (~108 hours total).
+- **Mode:** self-guided. He may or may not have Claude Code available while
+  working — the document must stand on its own, not depend on live AI
+  scaffolding.
+- **Goal framing:** interview readiness — each stage should leave him able to
+  explain *why*, not just *what*, and produce a runnable demo by day 18.
+
+## Application scope (carried over from prior discussion, not re-litigated here)
+
+- Spring Boot app + Postgres/pgvector, both via Docker Compose.
+- Groq (OpenAI-compatible endpoint) for LLM calls via Spring AI.
+- Gemini or Hugging Face for embeddings (Groq has no embeddings API).
+- Apache Tika for text extraction from uploaded files.
+- Chunking + embedding pipeline storing vectors in pgvector.
+- `/ask` endpoint: embed question → similarity search → build prompt → call
+  Groq → return answer + citations.
+- Rate-limit/retry handling for free-tier API limits.
+- Optional Spring Security (JWT).
+- Frontend or Swagger/Postman collection for demoing.
+- README with setup steps.
+
+## Pedagogical method
+
+1. **Day-by-day structure**, dependency-ordered (git/style foundations →
+   Spring skeleton → AI connectivity → ingestion → RAG pipeline → resilience
+   → polish). Matches how the app naturally has to be built, so there's no
+   artificial reordering to learn around.
+
+2. **Per-day contents**, each day's doc file includes:
+   - **Concept primer** — short, plain-language explanation of what's new
+     that day.
+   - **Reference links** — every tool, API, or concept mentioned links to
+     real, verified official documentation (see Citation Policy below).
+   - **Checkpoint** — a concrete, runnable success criterion (a curl command,
+     a test, a docker-compose command) proving the day's work is functionally
+     correct before moving on.
+   - **Exercise** — the hands-on work, styled per the split below.
+   - **Interview angle** — one short note connecting the day's work to a
+     question or story he could raise in an interview (e.g., "why pgvector
+     instead of a dedicated vector DB," "how do you handle third-party API
+     rate limits").
+
+3. **Exercise style split:**
+   - Genuinely new AI/RAG concepts (embeddings, chunking, prompt
+     construction, similarity search) → **worked example + variation**: full
+     working code shown, then a modification task (swap a parameter, change
+     a provider, tune a threshold) to build understanding through change
+     rather than blank-page recall.
+   - Familiar Spring Boot/CRUD territory (controllers, entities, Docker
+     Compose, JWT wiring) → **guided TODO with hints**: scaffolding and
+     function signatures given, logic left for him to write, with a
+     trade-offs note and an answer-key reference he's told not to open until
+     he's attempted it.
+
+4. **Day 1 foundations (new addition):** before any Spring Boot code, Day 1
+   morning covers git branching workflow (feature branches, commit hygiene),
+   a `.gitignore` that excludes secrets from the start, and code style
+   tooling (e.g. Spotless/Google Java Format) wired into the build. This is
+   intentionally light — habit-setting, not a deep dive — and doubles as an
+   interview-ready answer about branching/code-review practices.
+
+## Citation policy (new requirement)
+
+Every technical claim, tool, or API mentioned must link to its real,
+authoritative source (official docs, RFC, vendor API reference) — verified
+at authoring time via web search/fetch, never recalled from memory or
+guessed. This is a hard requirement: fabricated or unverified URLs are worse
+than no citation, since the whole point is that the friend can click through
+and verify independently. If a specific claim can't be traced to a real
+source, the doc says so rather than inventing one.
+
+## 18-day schedule
+
+```
+Day 1     Git/branching/commit hygiene + code style tooling (AM)
+          Spring Boot CRUD skeleton starts (PM)
+Day 2     Finish CRUD skeleton + Docker Compose (Spring Boot + Postgres/pgvector)
+          Checkpoint: docker-compose up, CRUD endpoints return 200s, first feature-branch PR merged
+Day 3     Groq + Gemini/HF "hello world" connectivity, .env secrets hygiene
+          Checkpoint: curl returns a real completion + a real embedding vector
+Day 4     RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring)
+          Embeddings/vector space, cosine similarity, chunking trade-offs, prompt construction patterns
+Day 5-6   File upload + Tika text extraction
+Day 7-9   Chunking strategy + embedding pipeline → pgvector storage
+Day 10-13 /ask endpoint: embed → similarity search → prompt build → Groq → cited answer
+          + iteration day for answer quality (chunk size, prompt tweaks, citation format)
+Day 14    Rate-limit/retry resilience for free-tier APIs  [core]
+Day 15    Spring Security (JWT)  [optional — cut first if behind]
+Day 16    Frontend or Swagger/Postman polish
+Day 17    README, sample-question cache, demo dataset prep
+Day 18    Buffer + mock interview run-through of the live demo
+```
+
+## Deliverable format
+
+A `docs/curriculum/` directory in this repo:
+
+- `00-overview.md` — goal, prerequisites, how to use this curriculum,
+  schedule table, link index.
+- `01-day1-git-and-style.md` through `18-day18-buffer-and-demo.md` — one file
+  per day (or per day-range where days are grouped, e.g. `05-06-upload-and-extraction.md`),
+  each following the per-day structure above.
+- Answer-key content for guided-TODO exercises lives in a clearly separated
+  section (or sub-file) per day, not interleaved with the exercise prompt.
+
+## Out of scope for this spec
+
+- The application's own implementation plan (endpoints, entities, pipeline
+  code) — written separately, informed by this curriculum's day boundaries,
+  once each day's content is authored.
+- Any actual Spring Boot/AI code — this spec only covers the curriculum
+  documents themselves.
+
+## Testing / validation
+
+- Each day's checkpoint must be independently verifiable (a command that
+  either passes or fails), not just "read and understand."
+- Citation links are checked at authoring time (fetched/verified), not just
+  pattern-matched to look like real URLs.
