@@ -65,8 +65,8 @@ it on purpose and see it with your own eyes.
 You don't need to source any of your own files for today (or for any
 later upload/chunking/`/ask` exercise). The repository ships a fixed,
 six-document corpus under
-[`docs/curriculum/sample-data/`](../sample-data/) — its
-[`README.md`](../sample-data/README.md) lists all six files and the key
+[`docs/curriculum/sample-data/`](sample-data/) — its
+[`README.md`](sample-data/README.md) lists all six files and the key
 facts in each one, deliberately chosen so retrieval accuracy is easy to
 verify by eye. It is deliberately PDF-heavy (four of six are PDFs) and
 includes one file — `vendor-contract-summary-scanned.pdf` — with **no
@@ -213,7 +213,7 @@ The signature is the scaffolding — the body is yours:
 ```java
 @PostMapping("/upload")
 public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file)
-        throws IOException {
+        throws IOException, TikaException {
     String extracted = null; // TODO: extract text with Tika
     // TODO: build a Document(file.getOriginalFilename(), extracted, Instant.now()),
     //       save it, return 201 with the saved copy (it now has an id)
@@ -266,7 +266,7 @@ Start the app (`./mvnw spring-boot:run`, or `docker compose up` if you're
 running the Day 3 stack), then upload **every** file in
 `docs/curriculum/sample-data/`. For each one, record the filename and
 whether the returned `content` is non-empty. Use the
-[`README.md`](../sample-data/README.md) key facts as your expected-result
+[`README.md`](sample-data/README.md) key facts as your expected-result
 key:
 
 | File | Expected `content` |
@@ -482,6 +482,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -518,7 +519,7 @@ public class DocumentController {
 
     @PostMapping("/upload")
     public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file)
-            throws IOException {
+            throws IOException, TikaException {
         String extracted = tika.parseToString(file.getInputStream());
         Document document = new Document(
                 file.getOriginalFilename(), extracted, Instant.now());
