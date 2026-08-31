@@ -1,0 +1,25 @@
+New Hire Onboarding Checklist
+Acme Robotics — Internal Policy Document
+Effective Date: 2026-01-01
+
+Day 1
+- IT provisions the new hire's laptop and accounts before their start
+  date, coordinated by the hiring manager.
+- New hire orientation session runs at 9:00 AM on the first day and
+  covers company policies, benefits, and org structure.
+
+Week 1
+- The hiring manager assigns an onboarding buddy to help the new hire
+  navigate their first weeks.
+- The new hire completes mandatory security and compliance training
+  through the internal learning portal.
+
+30-Day Mark
+- The new hire's manager conducts a first performance check-in to
+  discuss early progress and any blockers.
+- IT performs an access review to confirm the new hire has access to
+  exactly the systems required for their role, no more and no less.
+
+90-Day Mark
+- The new hire becomes eligible for the Remote Work Policy, provided
+  their role is approved for remote work.

@@ -1,0 +1,29 @@
+Remote Work Policy
+Acme Robotics — Internal Policy Document
+Effective Date: 2026-01-01
+
+1. Eligibility
+Employees become eligible to work remotely after completing 90 days of
+continuous employment. Eligibility is granted by the employee's direct
+manager and recorded in the HR system.
+
+2. Equipment Stipend
+Remote employees receive a one-time annual stipend of $500 to cover home
+office equipment such as a monitor, chair, or desk. Stipend requests are
+submitted through the Expense Reimbursement process.
+
+3. Core Collaboration Hours
+All remote employees must be reachable between 10:00 AM and 3:00 PM in
+their local time zone, so that meetings and pairing sessions can be
+scheduled without excluding remote team members.
+
+4. Communication Expectations
+Employees are expected to respond to Slack messages within 4 business
+hours during their working day. A weekly one-on-one meeting with the
+employee's manager is required and may not be skipped for more than two
+consecutive weeks without manager approval.
+
+5. Review Cadence
+Remote work arrangements are reviewed by the employee's manager every 6
+months to confirm the arrangement is still working for both the employee
+and the team.

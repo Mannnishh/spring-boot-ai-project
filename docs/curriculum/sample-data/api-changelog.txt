@@ -1,0 +1,20 @@
+Acme Robotics Platform API — Changelog
+
+v2.3.0 — 2026-06-01
+- Added the /documents/upload endpoint, which accepts PDF and plain
+  text files.
+- Deprecated the legacy /files/upload endpoint; it will be removed in
+  a future major version.
+
+v2.2.0 — 2026-04-15
+- Introduced rate limiting of 60 requests per minute per API key across
+  all endpoints.
+- Breaking change: removed unauthenticated access to /ask. All callers
+  must now supply a valid API key.
+
+v2.1.0 — 2026-02-10
+- Added citation metadata to /ask responses, listing which source
+  documents contributed to each answer.
+
+v2.0.0 — 2025-12-01
+- Initial public release of the platform API.
