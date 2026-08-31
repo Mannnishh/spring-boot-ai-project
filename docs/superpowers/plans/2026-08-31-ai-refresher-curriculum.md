@@ -41,7 +41,7 @@
 - Create: `docs/curriculum/19-oop-retrospective.md`
 - Create: `docs/curriculum/20-21-buffer-mock-interview.md`
 
-`docs/curriculum/sample-data/` (5 documents + `README.md`) already exists and does not need to be created by any task below — Tasks 7, 9, and 13 reference it by filename.
+`docs/curriculum/sample-data/` (6 documents + `README.md`) already exists and does not need to be created by any task below — Tasks 7, 9, and 13 reference it by filename.
 
 Each day file is independent (no shared code/imports), so tasks can run in any order except Task 1 (overview), which should be written first since its schedule table and link index are fixed by this plan regardless of day-file content, and revisited last for a consistency check.
 
@@ -316,19 +316,22 @@ WebSearch + WebFetch for:
 - Spring's official multipart file upload guide (`spring.io` guides or `docs.spring.io` reference).
 - Apache Tika's official docs (`tika.apache.org`), specifically the `Tika` facade class / `AutoDetectParser` usage for plain text extraction.
 - Maven Central or the Tika project's own docs for the exact `tika-core`/`tika-parsers` dependency coordinates (verify the artifact actually exists at the version cited).
+- Apache Tika's official OCR documentation (its Tesseract OCR parser page under `tika.apache.org`) — cited as the production remedy for the scanned-PDF failure mode below, not implemented in this exercise.
 
 - [ ] **Step 2: Draft the content**
 
 Write `docs/curriculum/06-07-file-upload-tika.md` with:
-- **Concept primer:** why extraction is needed before chunking/embedding (raw PDFs/DOCX aren't plain text); what Tika abstracts away (format detection + parsing across many file types).
-- **Sample dataset note:** point him at `docs/curriculum/sample-data/` (its `README.md` lists all five files and their key facts) as the fixed dataset used for every upload/chunking/`/ask` exercise for the rest of the curriculum — no need to source his own files.
+- **Concept primer:** why extraction is needed before chunking/embedding (raw PDFs/DOCX aren't plain text); what Tika abstracts away (format detection + parsing across many file types); and a callout that Tika's default extraction only reads a *text layer* — a PDF that's actually a picture of a page (a scanned document) has no text layer, so extraction silently returns empty rather than erroring.
+- **Sample dataset note:** point him at `docs/curriculum/sample-data/` (its `README.md` lists all six files and their key facts) as the fixed dataset used for every upload/chunking/`/ask` exercise for the rest of the curriculum — no need to source his own files.
 - **Reference links:** verified URLs from Step 1.
 - **Exercise (guided TODO + hints, builds on familiar Spring MVC patterns):**
   1. Add the Tika dependency (verified coordinates).
   2. Scaffold a `POST /documents/upload` endpoint accepting `MultipartFile`, with the extraction call left as a TODO (hint: `new Tika().parseToString(inputStream)`).
   3. Scaffold persisting the extracted text alongside the `Document` entity from Day 3 (add a `content` column) — leave the repository save call as a TODO.
-- **Checkpoint:** `curl -F file=@docs/curriculum/sample-data/remote-work-policy.txt localhost:8080/documents/upload` and `curl -F file=@docs/curriculum/sample-data/incident-response-runbook.pdf localhost:8080/documents/upload` both return the created `Document` with non-empty extracted text (confirming both the `.txt` and `.pdf` paths work); repeat for the remaining three files in the dataset so all five are loaded for later days.
-- **Interview angle:** "How do you handle unstructured/heterogeneous input formats?" — Tika's format auto-detection as the answer.
+  4. Upload all six files in `docs/curriculum/sample-data/`, including `vendor-contract-summary-scanned.pdf`, and record what comes back for each.
+- **Scanned-PDF sub-section (the actual point of this day, not a footnote):** have him confirm, by inspecting the response, that `vendor-contract-summary-scanned.pdf` comes back with empty or near-empty extracted text while the other five don't — this is expected, not a bug in his code or the dataset. Explain why (no text layer, just image data) and what production systems do about it (an OCR pass — e.g. Tesseract via Tika's OCR parser, cited above — run before or as part of extraction). Explicitly scope this as read-and-understand, not implement: wiring up OCR is a real but separate piece of work that doesn't fit this project's timeline, and knowing *why* it's needed and *what* the fix looks like is what an interview question is actually probing for.
+- **Checkpoint:** `curl -F file=@docs/curriculum/sample-data/remote-work-policy.txt localhost:8080/documents/upload` returns the created `Document` with non-empty extracted text containing "$500"; `curl -F file=@docs/curriculum/sample-data/vendor-contract-summary-scanned.pdf localhost:8080/documents/upload` returns a created `Document` whose extracted text is empty or near-empty (confirming the scanned-PDF failure mode was reproduced, not avoided); repeat the upload for the remaining four files so all six are loaded for later days.
+- **Interview angle:** "How do you handle unstructured/heterogeneous input formats — and what happens when a 'document' is actually just a scanned image?" — Tika's format auto-detection covers the first half; recognizing the text-layer limitation and naming OCR as the fix covers the second, and most candidates only have the first half ready.
 - **Answer key:** full controller method body and entity/repository wiring.
 
 - [ ] **Step 3: Verify all embedded links resolve**
@@ -408,7 +411,7 @@ Write `docs/curriculum/11-14-ask-endpoint-rag-pipeline.md` with:
   4. TODO: implement a small `PromptBuilder` (per the Java pattern note above) with chainable steps (e.g. `.withSystemInstruction(...)`, `.withContext(chunks)`, `.withQuestion(question)`, `.build()`) that instructs the model to answer only from the provided context and cite source filenames — give the builder's method signatures as scaffolding, leave the exact prompt wording to him.
   5. TODO: call Groq via the Day 4 chat client, return `{ answer, citedDocuments: [...] }`.
 - **Iteration sub-section** (explicitly covering the extra days): guidance on what to tune if answers are poor — chunk size/overlap (back to Day 8-10), top-k value, prompt wording strictness — framed as a debugging checklist, not new code.
-- **Checkpoint:** with all five `docs/curriculum/sample-data/` files uploaded (per Day 6-7), `curl -X POST localhost:8080/ask -d '{"question": "What is the equipment stipend for remote work?"}'` returns an answer containing "$500" and cites `remote-work-policy.txt`; `curl -X POST localhost:8080/ask -d '{"question": "How many requests per minute is the API rate limit?"}'` returns "60" and cites `api-changelog.txt`. Two distinct known-answer questions against two distinct documents confirm retrieval is actually discriminating between sources, not just returning whatever's first.
+- **Checkpoint:** with all six `docs/curriculum/sample-data/` files uploaded (per Day 6-7 — including the scanned PDF, even though it contributes no retrievable content) `curl -X POST localhost:8080/ask -d '{"question": "What is the equipment stipend for remote work?"}'` returns an answer containing "$500" and cites `remote-work-policy.txt`; `curl -X POST localhost:8080/ask -d '{"question": "How many requests per minute is the API rate limit?"}'` returns "60" and cites `api-changelog.txt`. Two distinct known-answer questions against two distinct documents confirm retrieval is actually discriminating between sources, not just returning whatever's first.
 - **Interview angle:** "How do you keep an LLM from hallucinating facts not in your data?" — the grounding/citation prompt pattern as the direct answer.
 - **Answer key:** one full worked `PromptBuilder` implementation with example prompt wording, and the complete endpoint method.
 
@@ -550,7 +553,7 @@ Write `docs/curriculum/18-readme-demo-prep.md` with:
 - **Reference links:** verified URL from Step 1.
 - **Exercise (guided TODO + hints):**
   1. TODO: write the project README covering setup (clone, `.env` keys needed, `docker-compose up`, sample curl commands) — give the required section headings as scaffolding, leave prose to him.
-  2. TODO: using the fixed `docs/curriculum/sample-data/` set already uploaded since Day 6-7 (no new documents to pick), pre-write 5-8 questions against it — the two from Day 11-14's checkpoint plus 3-6 more covering the other three documents (e.g. onboarding buddy assignment, expense per-diem amount, Sev1 postmortem deadline) — run each once against the live app, and save the question+answer pairs as a static `sample-qa.md` reference he can fall back to if a live call is slow/throttled during a demo.
+  2. TODO: using the fixed `docs/curriculum/sample-data/` set already uploaded since Day 6-7 (no new documents to pick), pre-write 5-8 questions against it — the two from Day 11-14's checkpoint plus 3-6 more covering the other three *retrievable* documents (e.g. onboarding buddy assignment, expense per-diem amount, Sev1 postmortem deadline) — run each once against the live app, and save the question+answer pairs as a static `sample-qa.md` reference he can fall back to if a live call is slow/throttled during a demo. Also note in `sample-qa.md`, in one line, that a question about the vendor contract is a deliberate exception: it should surface the scanned-PDF limitation from Day 6-7 rather than a grounded answer — useful to have ready if an interviewer asks "what happens if I ask about a document you can't actually read?"
 - **Checkpoint:** a person unfamiliar with the project can follow the README from a clean checkout to a working `curl /ask` call with no undocumented steps.
 - **Interview angle:** treating documentation and demo-reliability as part of the deliverable, not an afterthought, is itself worth mentioning.
 - **Answer key:** not applicable — this day's output is inherently personal/project-specific content, not a fixed correct answer.
