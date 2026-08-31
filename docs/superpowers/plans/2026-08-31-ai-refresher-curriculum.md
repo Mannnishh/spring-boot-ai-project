@@ -17,6 +17,7 @@
 - Exercise style: **worked example + variation** for genuinely new AI/RAG concepts (embeddings, chunking, prompt construction, similarity search, provider connectivity). **Guided TODO + hints + separated answer key** for familiar Spring Boot/CRUD/tooling territory (controllers, entities, Docker Compose, JWT wiring, git/style setup).
 - Answer-key content lives in a section titled `## Answer Key (attempt it yourself first!)` at the very bottom of the file, never interleaved with the exercise prompt.
 - Deliverable directory: `docs/curriculum/`.
+- Git commit style taught and used in all example commit commands across every day: Conventional Commits (`type(scope): description`).
 - Target pacing is ~6 hours per day of content — a guide for depth, not a hard word count.
 
 ---
@@ -85,7 +86,7 @@ git commit -m "docs: add curriculum overview and schedule index"
 
 Use WebSearch + WebFetch to find and confirm real, official sources for:
 - Git branching workflow (e.g. the official Git SCM book chapter on branching, or GitHub's own docs on feature branch workflow).
-- Conventional commit message conventions (the official conventionalcommits.org spec).
+- The Conventional Commits specification (`conventionalcommits.org`) — this is the specific commit-style standard the curriculum teaches, not generic "write a good message" advice.
 - `.gitignore` templates / GitHub's own `.gitignore` guidance, specifically for Java/Spring/`.env` patterns.
 - Spring Initializr (`start.spring.io`) official docs/usage.
 - A Java code formatter: Spotless (`github.com/diffplug/spotless`) or Google Java Format — pick one, verify its official repo/docs, and confirm Maven/Gradle plugin setup instructions from that same source.
@@ -93,15 +94,15 @@ Use WebSearch + WebFetch to find and confirm real, official sources for:
 - [ ] **Step 2: Draft the content**
 
 Write `docs/curriculum/01-day1-git-and-style.md` with:
-- **Concept primer:** why feature branches over trunk-direct commits for a solo project (still a real interview talking point), what a `.gitignore` protects against, why automated formatting removes a whole class of PR bikeshedding.
+- **Concept primer:** why feature branches over trunk-direct commits for a solo project (still a real interview talking point), what a `.gitignore` protects against, why automated formatting removes a whole class of PR bikeshedding, and why Conventional Commits specifically (`type(scope): description`, e.g. `feat(upload): add multipart endpoint`) — a machine-parseable format that tools can turn into changelogs, not just "write clear messages."
 - **Reference links:** every tool/concept above, using the verified URLs from Step 1.
 - **Exercise (guided TODO + hints, familiar territory):**
   1. `git init` (if not already) and create a `.gitignore` covering `.env`, `target/`/`build/`, `.idea/`/`.vscode/`.
   2. Create a `feature/project-skeleton` branch.
   3. Use Spring Initializr (web UI or `curl start.spring.io`) to generate a skeleton with Web, JPA, PostgreSQL driver, and pgvector-compatible dependencies (note: exact pgvector dependency is finalized on Day 2 — Day 1 just needs Web + JPA + Postgres driver).
   4. Add the chosen formatter (Spotless or Google Java Format) to the build file with a `check`/`apply` task, run it once.
-  5. Commit the skeleton on the feature branch with a conventional-style commit message.
-- **Checkpoint:** `git log --oneline` shows at least one commit on `feature/project-skeleton`; running the formatter's check task exits 0.
+  5. Commit the skeleton on the feature branch using a Conventional Commits-formatted message (e.g. `feat: scaffold spring boot project skeleton`).
+- **Checkpoint:** `git log --oneline` shows at least one commit on `feature/project-skeleton` matching the Conventional Commits `type: description` format; running the formatter's check task exits 0.
 - **Interview angle:** "How do you structure your git workflow and keep code style consistent across a team?" — he now has a concrete, first-hand answer.
 - **Answer key:** not needed for this day (git/setup commands are given directly, not a design decision — no answer key section required).
 
