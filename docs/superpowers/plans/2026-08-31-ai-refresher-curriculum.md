@@ -90,12 +90,14 @@ Use WebSearch + WebFetch to find and confirm real, official sources for:
 - `.gitignore` templates / GitHub's own `.gitignore` guidance, specifically for Java/Spring/`.env` patterns.
 - Spring Initializr (`start.spring.io`) official docs/usage.
 - A Java code formatter: Spotless (`github.com/diffplug/spotless`) or Google Java Format — pick one, verify its official repo/docs, and confirm Maven/Gradle plugin setup instructions from that same source.
+- Git's official docs on `core.autocrlf` (`git-scm.com` docs page for `git config`), for the Windows-specific line-ending note below.
 
 - [ ] **Step 2: Draft the content**
 
 Write `docs/curriculum/01-day1-git-and-style.md` with:
 - **Concept primer:** why feature branches over trunk-direct commits for a solo project (still a real interview talking point), what a `.gitignore` protects against, why automated formatting removes a whole class of PR bikeshedding, and why Conventional Commits specifically (`type(scope): description`, e.g. `feat(upload): add multipart endpoint`) — a machine-parseable format that tools can turn into changelogs, not just "write clear messages."
 - **Reference links:** every tool/concept above, using the verified URLs from Step 1.
+- **Windows setup note:** a short callout — before anything else, run `git config --global core.autocrlf true` so git normalizes line endings on checkout/commit instead of flagging every file as changed. One sentence on *why* (Windows uses CRLF, git repos standardize on LF; without this every file looks modified even when it isn't).
 - **Exercise (guided TODO + hints, familiar territory):**
   1. `git init` (if not already) and create a `.gitignore` covering `.env`, `target/`/`build/`, `.idea/`/`.vscode/`.
   2. Create a `feature/project-skeleton` branch.
@@ -132,17 +134,21 @@ WebSearch + WebFetch for official sources on:
 - Docker Compose file reference (`docs.docker.com/compose/compose-file/`).
 - The official `pgvector/pgvector` Docker image (`hub.docker.com` or the `pgvector/pgvector` GitHub repo's Docker instructions) — confirm the exact image tag documented there.
 - Spring Boot's `application.yml` datasource configuration reference.
+- Docker's official "Install Docker Desktop on Windows" docs (`docs.docker.com/desktop/install/windows-install/`), specifically the WSL2 backend requirement and setup steps.
+- Microsoft's official WSL install docs (`learn.microsoft.com/windows/wsl/install`) — for the one-paragraph "what WSL2 is" explanation, since this is genuinely new to him.
 
 - [ ] **Step 2: Draft the content**
 
 Write `docs/curriculum/02-day2-crud-docker.md` with:
 - **Concept primer:** what pgvector adds to plain Postgres (a vector column type + similarity search operators), why running Postgres via Docker Compose instead of a local install.
-- **Reference links:** from Step 1, verified URLs.
+- **Windows setup primer (new subsection, since he has little Docker/WSL context):** a short, plain-language explanation of what WSL2 is (a real Linux kernel running alongside Windows) and why Docker Desktop on Windows needs it (containers are Linux processes; WSL2 is what actually runs them — Docker Desktop is the UI/orchestration on top). Step-by-step: enable WSL2 (`wsl --install` from an admin PowerShell, reboot if prompted), install Docker Desktop, confirm in Docker Desktop's Settings that the WSL2-based engine is selected (not the legacy Hyper-V backend). Note this is one-time setup, not something he'll touch again after Day 2.
+- **Reference links:** from Step 1, verified URLs, including the two Windows/WSL2 links.
 - **Exercise (guided TODO + hints):**
-  1. Define a simple domain entity relevant to the eventual RAG app (e.g. `Document` with id/filename/uploadedAt) with a JPA repository.
-  2. Write a controller exposing basic CRUD endpoints for it. Give the class/method signatures as scaffolding; leave method bodies as TODOs with hints (e.g. "use `repository.findAll()`... what HTTP status for a 404 on `findById`?").
-  3. Write a `docker-compose.yml` with a `pgvector/pgvector` service (verified image tag from Step 1) and the Spring Boot app service, wired via environment variables (no hardcoded credentials — reference `.env` from Day 1's `.gitignore`).
-  4. Wire `application.yml` datasource properties to the Compose Postgres service.
+  1. Verify Docker works at all: `docker run hello-world` should pull and run successfully before continuing.
+  2. Define a simple domain entity relevant to the eventual RAG app (e.g. `Document` with id/filename/uploadedAt) with a JPA repository.
+  3. Write a controller exposing basic CRUD endpoints for it. Give the class/method signatures as scaffolding; leave method bodies as TODOs with hints (e.g. "use `repository.findAll()`... what HTTP status for a 404 on `findById`?").
+  4. Write a `docker-compose.yml` with a `pgvector/pgvector` service (verified image tag from Step 1) and the Spring Boot app service, wired via environment variables (no hardcoded credentials — reference `.env` from Day 1's `.gitignore`).
+  5. Wire `application.yml` datasource properties to the Compose Postgres service.
 - **Checkpoint:** `docker-compose up` starts both containers; `curl localhost:8080/documents` (or the equivalent chosen path) returns `200` with a JSON array (empty is fine); `git log` shows this merged from a feature branch (first practiced PR-style merge per Day 1's workflow).
 - **Interview angle:** "Why colocate Postgres+pgvector instead of a separate vector database?" — trade-off note: fewer moving parts vs. a dedicated vector DB's specialized indexing at scale.
 - **Answer key:** include a `## Answer Key (attempt it yourself first!)` section with the full controller method bodies and a complete `docker-compose.yml`.
