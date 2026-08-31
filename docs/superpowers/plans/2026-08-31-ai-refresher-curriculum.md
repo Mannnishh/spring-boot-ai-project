@@ -91,6 +91,7 @@ Use WebSearch + WebFetch to find and confirm real, official sources for:
 - Spring Initializr (`start.spring.io`) official docs/usage.
 - A Java code formatter: Spotless (`github.com/diffplug/spotless`) or Google Java Format — pick one, verify its official repo/docs, and confirm Maven/Gradle plugin setup instructions from that same source.
 - Git's official docs on `core.autocrlf` (`git-scm.com` docs page for `git config`), for the Windows-specific line-ending note below.
+- IntelliJ IDEA's official download/getting-started page (`jetbrains.com/idea/download` or `jetbrains.com/help/idea`) — confirm the Community Edition is free and sufficient for Spring Boot work (Spring Initializr integration, run configs), noting Ultimate's added database client/Spring tooling as optional.
 
 - [ ] **Step 2: Draft the content**
 
@@ -98,12 +99,14 @@ Write `docs/curriculum/01-day1-git-and-style.md` with:
 - **Concept primer:** why feature branches over trunk-direct commits for a solo project (still a real interview talking point), what a `.gitignore` protects against, why automated formatting removes a whole class of PR bikeshedding, and why Conventional Commits specifically (`type(scope): description`, e.g. `feat(upload): add multipart endpoint`) — a machine-parseable format that tools can turn into changelogs, not just "write clear messages."
 - **Reference links:** every tool/concept above, using the verified URLs from Step 1.
 - **Windows setup note:** a short callout — before anything else, run `git config --global core.autocrlf true` so git normalizes line endings on checkout/commit instead of flagging every file as changed. One sentence on *why* (Windows uses CRLF, git repos standardize on LF; without this every file looks modified even when it isn't).
+- **IDE setup note:** a short callout recommending IntelliJ IDEA Community Edition (free, sufficient for this project — Spring Initializr integration, run configs, JPA/SQL awareness) as the preferred IDE, with a one-line mention that Ultimate adds a database client/deeper Spring tooling and is free with a student license if he has one. Note VS Code + the Java/Spring Boot Extension Pack as a lighter-weight alternative if he already prefers it.
 - **Exercise (guided TODO + hints, familiar territory):**
-  1. `git init` (if not already) and create a `.gitignore` covering `.env`, `target/`/`build/`, `.idea/`/`.vscode/`.
-  2. Create a `feature/project-skeleton` branch.
-  3. Use Spring Initializr (web UI or `curl start.spring.io`) to generate a skeleton with Web, JPA, PostgreSQL driver, and pgvector-compatible dependencies (note: exact pgvector dependency is finalized on Day 2 — Day 1 just needs Web + JPA + Postgres driver).
-  4. Add the chosen formatter (Spotless or Google Java Format) to the build file with a `check`/`apply` task, run it once.
-  5. Commit the skeleton on the feature branch using a Conventional Commits-formatted message (e.g. `feat: scaffold spring boot project skeleton`).
+  1. Install IntelliJ IDEA Community Edition (or confirm VS Code + Java/Spring extensions if going that route).
+  2. `git init` (if not already) and create a `.gitignore` covering `.env`, `target/`/`build/`, `.idea/`/`.vscode/`.
+  3. Create a `feature/project-skeleton` branch.
+  4. Use Spring Initializr (web UI, `curl start.spring.io`, or IntelliJ's built-in "New Project" Spring Initializr wizard) to generate a skeleton with Web, JPA, PostgreSQL driver, and pgvector-compatible dependencies (note: exact pgvector dependency is finalized on Day 2 — Day 1 just needs Web + JPA + Postgres driver).
+  5. Add the chosen formatter (Spotless or Google Java Format) to the build file with a `check`/`apply` task, run it once.
+  6. Commit the skeleton on the feature branch using a Conventional Commits-formatted message (e.g. `feat: scaffold spring boot project skeleton`).
 - **Checkpoint:** `git log --oneline` shows at least one commit on `feature/project-skeleton` matching the Conventional Commits `type: description` format; running the formatter's check task exits 0.
 - **Interview angle:** "How do you structure your git workflow and keep code style consistent across a team?" — he now has a concrete, first-hand answer.
 - **Answer key:** not needed for this day (git/setup commands are given directly, not a design decision — no answer key section required).
