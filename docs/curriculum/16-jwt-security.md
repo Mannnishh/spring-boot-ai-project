@@ -239,8 +239,12 @@ public class AuthController {
 
     // Hardcoded per the brief. A real app checks a UserDetailsService-
     // backed store with a hashed password (BCryptPasswordEncoder), never
-    // a literal String.equals — naming that gap is part of today's
-    // interview angle.
+    // a literal String.equals — and even String.equals itself is a known
+    // weak spot here: it short-circuits on the first differing
+    // character, so its running time leaks how much of a guess was
+    // correct (a timing attack). The constant-time fix is
+    // MessageDigest.isEqual(byte[], byte[]), not String.equals — naming
+    // both gaps is part of today's interview angle.
     private static final String HARDCODED_USERNAME = "demo";
     private static final String HARDCODED_PASSWORD = "demo-password";
     private static final long EXPIRATION_MILLIS = 3_600_000; // 1 hour
@@ -322,10 +326,14 @@ public class SecurityConfig {
         // 2. .authorizeHttpRequests(auth -> auth
         //        .requestMatchers("/login").permitAll()
         //        .requestMatchers("/ask", "/documents/**").authenticated()
-        //        .anyRequest().permitAll())
-        //    — only gate what the brief asks for; don't reach for
-        //    anyRequest().authenticated() and accidentally lock an
-        //    endpoint outside today's scope.
+        //        .anyRequest().authenticated())
+        //    — default-deny: name every public route explicitly (just
+        //    /login today) and let the catch-all require authentication
+        //    for everything else, including routes this day doesn't
+        //    otherwise mention (e.g. bare GET /documents). Every
+        //    authorizeHttpRequests example on the reference doc above
+        //    ends its chain with .anyRequest().authenticated() for
+        //    exactly this reason — fail closed by default, not open.
         // 3. .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
         //    — wires the bearer-token filter using the JwtDecoder bean
         //    above (no issuer-uri needed: we're both issuer and verifier
@@ -416,6 +424,19 @@ short-lived access tokens (minutes, to bound how long a compromised or
 token that *can* be revoked, rather than betting everything on one
 long-lived stateless token.
 
+*A related angle worth having ready about today's own `/login` endpoint:*
+comparing credentials with `String.equals` isn't just an
+authentication-*source* problem (hardcoded constants vs. a real
+`UserDetailsService`) — `String.equals` itself is a variable-time
+comparison. It short-circuits and returns as soon as it hits the first
+differing character, so how long the call takes leaks how many leading
+characters of a guessed password were correct, a textbook timing attack
+against a naive credential check. The production-correct comparison is
+constant-time — `MessageDigest.isEqual(byte[], byte[])`, which always
+inspects every byte no matter where a mismatch occurs — and naming that,
+unprompted, is a strong signal in a security-focused interview even
+though it's an easy detail to overlook.
+
 ## Answer Key (attempt it yourself first!)
 
 Only read this after the checkpoint's four curl commands pass.
@@ -505,7 +526,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login").permitAll()
                         .requestMatchers("/ask", "/documents/**").authenticated()
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();
     }
