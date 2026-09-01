@@ -105,19 +105,24 @@ results on Days 11–14 without trusting anything.
   `<latest>`/`<release>` is **4.0.0**; the `4.0.0/` directory contains
   the jar and pom.
 - [tika-parsers — maven-metadata.xml](https://repo.maven.apache.org/maven2/org/apache/tika/tika-parsers/maven-metadata.xml) —
-  4.0.0 is current. **Nuance:** `tika-parsers` is a **POM-only**
-  aggregator — its
+  4.0.0 is current. **Nuance:** as of 4.0.0, every `tika-parsers*`
+  artifact — `tika-parsers`, `tika-parsers-standard`, and
+  `tika-parsers-standard-package` — is a **POM-only** aggregator: its
   [4.0.0 directory](https://repo.maven.apache.org/maven2/org/apache/tika/tika-parsers/4.0.0/)
-  contains `tika-parsers-4.0.0.pom` and no jar. It transitively pulls
-  `tika-parsers-standard` (the light parser set) plus
-  `tika-parsers-extended` (the full set). For a focused lesson the
-  minimal footprint is `org.apache.tika:tika-parsers-standard:4.0.0`
-  instead of the full `tika-parsers` aggregate.
+  contains only a `.pom` file, no jar. A plain `<dependency>` (default
+  `type=jar`) on any of them will fail to resolve. Tika's own
+  [4.0.0 release notes](https://tika.apache.org/4.0.0/index.html) spell
+  this out: *"tika-parsers-standard-package is now a pom, not a jar.
+  Users must add `<type>pom</type>` in Maven or `@pom` in Gradle."*
 - Exact verified coordinates (current, 4.0.0):
-  `org.apache.tika:tika-core:4.0.0` and
-  `org.apache.tika:tika-parsers:4.0.0`. The previous 3.x stable —
+  `org.apache.tika:tika-core:4.0.0` (a real jar) plus
+  `org.apache.tika:tika-parsers-standard-package:4.0.0` declared with
+  `<type>pom</type>` (below) — this is Tika's own documented pattern for
+  pulling in the standard parser set (PDF, DOCX, HTML, plain text, and
+  more). The previous 3.x stable —
   `org.apache.tika:tika-core:3.3.2` / `org.apache.tika:tika-parsers:3.3.2`
-  — is also verified and matches the 3.3.x examples page above; the
+  (a real jar in 3.x, before the split) — is also verified and matches
+  the 3.3.x examples page above; the
   facade/`parseToString`/`AutoDetectParser` API is unchanged across
   3.x → 4.x.
 
@@ -159,7 +164,9 @@ git checkout -b feature/file-upload-tika
 
 Add both artifacts to `pom.xml` with the verified coordinates (Maven
 shown; if Day 1 generated a Gradle build, use the equivalent
-`implementation 'org.apache.tika:tika-core:4.0.0'` lines):
+`implementation 'org.apache.tika:tika-core:4.0.0'` plus
+`implementation 'org.apache.tika:tika-parsers-standard-package:4.0.0@pom'`
+lines):
 
 ```xml
 <dependency>
@@ -169,19 +176,27 @@ shown; if Day 1 generated a Gradle build, use the equivalent
 </dependency>
 <dependency>
     <groupId>org.apache.tika</groupId>
-    <artifactId>tika-parsers</artifactId>
+    <artifactId>tika-parsers-standard-package</artifactId>
     <version>4.0.0</version>
+    <type>pom</type>
 </dependency>
 ```
 
+**Don't drop that `<type>pom</type>` line.** As of Tika 4.0.0, the
+parser-bundle artifacts publish only a `.pom` (no jar) — a plain
+`<dependency>` without it will fail with a "could not find artifact"
+error, since Maven defaults to looking for a jar. `tika-core` is a real
+jar and doesn't need it.
+
 *Version note:* 4.0.0 is the current release per the
-[tika-core metadata](https://repo.maven.apache.org/maven2/org/apache/tika/tika-core/maven-metadata.xml);
+[tika-core metadata](https://repo.maven.apache.org/maven2/org/apache/tika/tika-core/maven-metadata.xml)
+and matches the pattern documented in
+[Tika's 4.0.0 release notes](https://tika.apache.org/4.0.0/index.html).
 3.3.2 is the last 3.x stable and matches the
-[examples page](https://tika.apache.org/3.3.1/examples.html) cited above.
-Either works — pin one and stay on it. `tika-parsers` is a POM-only
-aggregator (no jar of its own); if you'd rather keep the dependency tree
-small, swap it for `org.apache.tika:tika-parsers-standard:4.0.0`, which
-covers the common PDF/DOCX/TXT/HTML formats this project needs.
+[examples page](https://tika.apache.org/3.3.1/examples.html) cited
+above — in 3.x, `org.apache.tika:tika-parsers:3.3.2` is still a real
+jar (the POM-only split happened for 4.0.0), so no `<type>pom</type>`
+is needed if you pin to 3.3.2 instead.
 
 Because Spring Boot has **no Tika auto-configuration**, also declare the
 `Tika` bean once so the controller can inject a single shared instance

@@ -187,7 +187,7 @@ Inference endpoint and model
 (`sentence-transformers/all-MiniLM-L6-v2`), the same
 `Authorization: Bearer` header, the same array-of-arrays response shape —
 see
-[Day 4, steps 3–4](04-day4-groq-embeddings-hello-world.md) for the full
+[Day 4, step 4](04-day4-groq-embeddings-hello-world.md) for the full
 walkthrough. The only differences: the API key is read from the
 `HF_API_KEY` environment variable (`System.getenv`), and instead of
 Jackson (which Day 4 had because Spring Boot Web pulls it in), the
@@ -461,12 +461,13 @@ trade-offs. Being able to defend each of those three in one sentence is
 the difference between "I wired up a vector DB" and "I understand the
 pipeline I built."
 
-## Answer Key (attempt it yourself first!)
+## Complete file (reference)
 
-Only read this after your script prints three scores in the right order.
-This is the consolidated, copy-paste version: the by-hand cosine
-similarity, the naive chunking function, and the three-pair variation
-(plus the chunking demo) in one file.
+This is a worked example, not a guided-TODO exercise — every piece above
+was already shown, not held back. This section only consolidates Part 1's
+cosine similarity, Part 2's three-pair variation, and Part 3's chunking
+demo into one runnable file, in place of the placeholder pairs shown
+earlier, so you don't have to hand-assemble the pieces yourself.
 
 **`Main.java`**
 

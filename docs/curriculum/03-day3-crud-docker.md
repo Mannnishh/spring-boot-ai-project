@@ -339,8 +339,17 @@ volumes:
   `localhost` — hence `jdbc:postgresql://db:5432/...`.
 - `build: .` means Compose builds the app from a `Dockerfile` in this
   directory, so add one (see the unverified-image note below). Because
-  the build context is the whole project, add a `.dockerignore` so
-  `.env`, `.git/`, and build output never get baked into the image.
+  the build context is the whole project, add a `.dockerignore` next to
+  it so `.env`, `.git/`, and build output never get baked into the
+  image:
+  ```
+  .git/
+  .env
+  target/
+  build/
+  .idea/
+  .vscode/
+  ```
 - Create `.env` (same directory as `docker-compose.yml`) with real
   *local* values:
   ```

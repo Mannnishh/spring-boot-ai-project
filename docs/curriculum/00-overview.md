@@ -77,7 +77,7 @@ everything else here and beyond.
 | Day 2 | Advanced Java/OOP refresher (standalone, not yet wired into Spring). SOLID, interfaces vs. abstract classes, composition over inheritance, generics, streams/lambdas/Optional, exception-hierarchy design, preview of Strategy/Builder/Decorator patterns used later. |
 | Day 3 | Finish CRUD skeleton + Docker Compose (Spring Boot + Postgres/pgvector). Checkpoint: `docker-compose up`, CRUD endpoints return 200s, first feature-branch PR merged. Java pattern note: dependency injection as Inversion of Control. |
 | Day 4 | Groq + Gemini/HF "hello world" connectivity, `.env` secrets hygiene. Checkpoint: curl returns a real completion + a real embedding vector. |
-| Day 5 | RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs, prompt construction patterns. |
+| Day 5 | RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs. |
 | Day 6–7 | File upload + Tika text extraction. |
 | Day 8–10 | Chunking strategy + embedding pipeline → pgvector storage. Java pattern note: Strategy pattern for pluggable chunking strategies. |
 | Day 11–14 | `/ask` endpoint: embed → similarity search → prompt build → Groq → cited answer, plus an iteration day for answer quality (chunk size, prompt tweaks, citation format). Java pattern note: Builder pattern for prompt construction. |

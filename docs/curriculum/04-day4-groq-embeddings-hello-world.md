@@ -13,8 +13,8 @@ pipeline) and 11–14 (`/ask`) both assume these two calls already work, so
 proving them here — with real keys, real model names, and a real curl
 round-trip — means later days fail for *pipeline* reasons, not *connectivity*
 reasons. Today's material is genuinely new (external AI provider wiring), so
-it's a worked example + variation, with the complete files consolidated in
-the answer key at the bottom.
+it's a worked example + variation, with the complete files consolidated for
+reference at the bottom.
 
 ## Concept primer
 
@@ -190,7 +190,9 @@ Walk through each piece:
   is a current Groq model ID per the
   [Groq models page](https://console.groq.com/docs/models); you'll swap it
   in the variation task below. Chat auto-configuration is on by default
-  (`spring.ai.model.chat=openai`), so no further toggle is required.
+  (`spring.ai.model.chat=openai`, per the
+  [same OpenAI Chat reference](https://docs.spring.io/spring-ai/reference/api/chat/openai-chat.html)
+  above — "It is enabled by default"), so no further toggle is required.
 
 Then add the two keys to your `.env` (the same gitignored file Day 1 created
 and Day 3 extended — it now accumulates all the project's secrets):
@@ -381,11 +383,12 @@ naming the two failure modes too: a key committed to git is a secret that
 must be assumed leaked and rotated, and a key hardcoded in config can't vary
 per environment — both are what this setup avoids.
 
-## Answer Key (attempt it yourself first!)
+## Complete files (reference)
 
-Only read this after you've built the two endpoints and both curls return.
-This is the consolidated, copy-paste version of what the exercise walked
-through.
+This is a worked example, not a guided-TODO exercise — every line above was
+already shown, not held back. This section only consolidates the pieces
+built incrementally in steps 2–4 into complete, copy-paste-able files, so
+you don't have to hand-assemble the diffs yourself.
 
 **`application.yml`**
 
