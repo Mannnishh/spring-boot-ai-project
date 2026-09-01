@@ -143,12 +143,16 @@ itself — already does natively.
 - [Spring Framework — Resilience](https://docs.spring.io/spring-framework/reference/core/resilience.html) —
   the reference for `@Retryable`, `@EnableResilientMethods`, and
   `RetryTemplate`; part of core Spring Framework since 7.0, no separate
-  dependency.
+  dependency. States exactly what happens once retries are exhausted: "If
+  all attempts have failed and the retry policy has been exhausted, the
+  last original exception from the target method will be propagated to the
+  caller" — the last original exception, not a wrapper, which is why
+  `AskController`'s catch clause below can match the specific exception
+  types directly.
 - [`@Retryable` Javadoc](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/resilience/annotation/Retryable.html) —
   the authoritative attribute list used below: `includes`, `maxRetries`
   (default `3`), `delay` (default `1000` ms), `multiplier` (default `1.0`,
-  a `double`), `maxDelay`. Confirms the last original exception — not a
-  wrapper — propagates to the caller once retries are exhausted.
+  a `double`), `maxDelay`.
 - [Spring Retry — GitHub](https://github.com/spring-projects/spring-retry) —
   cited for its own archival notice: "superseded by Spring Framework 7 and
   is now archived," which is why it isn't the library used today.
@@ -471,9 +475,6 @@ You're done with Day 15 when:
    on every failed attempt — no code of yours produces that line), then
    the same clean `503` — this time via the `ResourceAccessException`
    branch of your catch clause. Revert the base URL afterward.
-4. Commit on the feature branch with a Conventional Commits message (e.g.
-   `feat: add retry-with-backoff resilience to /ask`), push, and merge via
-   a pull request per Day 1.
 
 If step 2's failure comes back as a raw `500` with a stack trace in the
 response body, the catch clause isn't matching the exception actually
@@ -663,9 +664,11 @@ spring:
         - 429
 ```
 
-**`AskController.java`** (complete — the `PromptBuilder`, `SYSTEM_INSTRUCTION`,
-`ContextChunk`, and `toVectorLiteral` are unchanged from
-[Day 11–14](11-14-ask-endpoint-rag-pipeline.md) and not repeated here)
+**`AskController.java`** (complete — `PromptBuilder` and `ContextChunk` are
+separate classes, unchanged from
+[Day 11–14](11-14-ask-endpoint-rag-pipeline.md), and not repeated here;
+everything shown below is the complete class, including the unchanged
+`SYSTEM_INSTRUCTION` and `toVectorLiteral`)
 
 ```java
 package com.example.demo;
