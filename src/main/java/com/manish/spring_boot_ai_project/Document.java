@@ -1,9 +1,6 @@
 package com.manish.spring_boot_ai_project;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
@@ -14,13 +11,18 @@ public class Document {
   private long id;
 
   private String filename;
+
+  @Column(columnDefinition = "TEXT")
+  private String content;
+
   private Instant uploadedAt;
 
   public Document() {}
   ;
 
-  public Document(String filename, Instant uploadedAt) {
+  public Document(String filename, String content, Instant uploadedAt) {
     this.filename = filename;
+    this.content = content;
     this.uploadedAt = uploadedAt;
   }
 
@@ -38,6 +40,14 @@ public class Document {
 
   public void setFilename(String filename) {
     this.filename = filename;
+  }
+
+  public String getContent() {
+    return content;
+  }
+
+  public void setContent(String content) {
+    this.content = content;
   }
 
   public void setUploadedAt(Instant uploadedAt) {
