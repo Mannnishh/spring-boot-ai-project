@@ -79,6 +79,7 @@ everything else here and beyond.
 | Day 4 | Groq + Gemini/HF "hello world" connectivity, `.env` secrets hygiene. Checkpoint: curl returns a real completion + a real embedding vector. |
 | Day 5 | RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs. |
 | Day 6–7 | File upload + Tika text extraction. |
+| Before Day 8 | One-time upgrade to Spring Boot 4 + Spring AI 2 (only if your project was generated on older versions). |
 | Day 8–10 | Chunking strategy + embedding pipeline → pgvector storage. Java pattern note: Strategy pattern for pluggable chunking strategies. |
 | Day 11–14 | `/ask` endpoint: embed → similarity search → prompt build → Groq → cited answer, plus an iteration day for answer quality (chunk size, prompt tweaks, citation format). Java pattern note: Builder pattern for prompt construction. |
 | Day 15 | Rate-limit/retry resilience for free-tier APIs [core]. Java pattern note: Decorator pattern for the retry wrapper. |
@@ -97,11 +98,12 @@ everything else here and beyond.
 4. [Day 4 — Groq & Embeddings Hello World](04-day4-groq-embeddings-hello-world.md)
 5. [Day 5 — RAG Fundamentals](05-day5-rag-fundamentals.md)
 6. [Day 6–7 — File Upload & Tika](06-07-file-upload-tika.md)
-7. [Day 8–10 — Chunking & Embedding Pipeline](08-10-chunking-embedding-pipeline.md)
-8. [Day 11–14 — /ask Endpoint & RAG Pipeline](11-14-ask-endpoint-rag-pipeline.md)
-9. [Day 15 — Rate-Limit Resilience](15-rate-limit-resilience.md)
-10. [Day 16 — JWT Security](16-jwt-security.md)
-11. [Day 17 — Frontend & API Docs Polish](17-frontend-api-docs-polish.md)
-12. [Day 18 — README & Demo Prep](18-readme-demo-prep.md)
-13. [Day 19 — OOP Retrospective](19-oop-retrospective.md)
-14. [Day 20–21 — Buffer & Mock Interview](20-21-buffer-mock-interview.md)
+7. [Before Day 8 — Upgrade to Boot 4 + Spring AI 2](07b-upgrade-boot4-spring-ai2.md)
+8. [Day 8–10 — Chunking & Embedding Pipeline](08-10-chunking-embedding-pipeline.md)
+9. [Day 11–14 — /ask Endpoint & RAG Pipeline](11-14-ask-endpoint-rag-pipeline.md)
+10. [Day 15 — Rate-Limit Resilience](15-rate-limit-resilience.md)
+11. [Day 16 — JWT Security](16-jwt-security.md)
+12. [Day 17 — Frontend & API Docs Polish](17-frontend-api-docs-polish.md)
+13. [Day 18 — README & Demo Prep](18-readme-demo-prep.md)
+14. [Day 19 — OOP Retrospective](19-oop-retrospective.md)
+15. [Day 20–21 — Buffer & Mock Interview](20-21-buffer-mock-interview.md)

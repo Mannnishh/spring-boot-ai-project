@@ -1,5 +1,10 @@
 # Day 8-10 — Chunking + Embedding Pipeline → pgvector
 
+> **Before you start:** if your `pom.xml` is on Spring Boot 3.x or a Spring
+> AI 1.x version, do the [one-time upgrade](07b-upgrade-boot4-spring-ai2.md)
+> first. Everything from here on is tested against Spring Boot 4.1.1 +
+> Spring AI 2.0.1.
+
 **Focus:** Turn the extracted text from Day 6–7 into *retrievable* data.
 You'll add a pluggable `ChunkingStrategy`, split each document's text into
 chunks, embed every chunk with the Day 4 Hugging Face call, and persist each
