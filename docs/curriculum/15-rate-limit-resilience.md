@@ -10,9 +10,10 @@ retry-with-backoff, and turns whatever survives the retries into a `503`
 instead of a `500`.
 
 One thing to set expectations before you start: **the two calls don't need
-the same fix.** The Groq call already runs through a retry decorator you
-didn't write — Spring AI wraps its own `ChatClient` calls in a
-`RetryTemplate` and only needs *configuring*. The Hugging Face call is raw
+the same fix.** The Groq call already runs through a retry loop you didn't
+write — Spring AI 2.x talks to OpenAI-compatible APIs through the official
+OpenAI Java SDK, which retries rate limits and server errors on its own and
+only needs *tuning*. The Hugging Face call is raw
 `java.net.http.HttpClient` with nothing wrapping it, so that half needs a
 decorator you build by hand. Recognizing which is which — instead of
 reflexively writing a wrapper for both — is most of today's lesson.
@@ -51,34 +52,46 @@ clean, honest error response once retries are exhausted for either kind.
 
 ### Two calls, two different starting points
 
-**Groq (`ChatClient`) already has a decorator.** Every Spring AI model
-starter — including the `spring-ai-starter-model-openai` you added on Day
-4 — pulls in Spring AI's retry autoconfiguration module. It registers a
-`RetryTemplate` that wraps every call the OpenAI-compatible client makes,
-classifying each HTTP error as retryable (`TransientAiException`) or not
-(`NonTransientAiException`) and retrying the transient ones with
-exponential backoff automatically. You've been getting this since Day 4
-without knowing it. Today's job on the Groq side is **not** "write a
-wrapper" — it's "read the default classification rule, notice it doesn't
-cover your actual failure mode, and fix the configuration."
+**Groq (`ChatClient`) already has a retry loop.** Since 2.0, Spring AI's
+OpenAI module — the `spring-ai-starter-model-openai` you added on Day 4 —
+is built on the official
+[OpenAI Java SDK](https://github.com/openai/openai-java) (`openai-java`),
+and every HTTP call goes through that SDK's client. The SDK retries on its
+own, with short exponential backoff, and it classifies failures the way
+you'd want: **connection errors, `408`, `409`, `429`, and `5xx` are
+retried; everything else (`400`, `401`, `403`, `404`, `422`) fails
+immediately.** Spring AI passes two knobs through to it —
+`spring.ai.openai.max-retries` (default `3`) and `spring.ai.openai.timeout`
+(default 60s). You've been getting this since Day 4 without knowing it.
+Once retries run out, the SDK throws its own unchecked exceptions, all
+under one base class, `com.openai.errors.OpenAIException`:
+`RateLimitException` for a 429, `InternalServerException` for a 5xx,
+`OpenAIIoException` for a network failure, `UnauthorizedException` for a
+bad key, and so on. Today's job on the Groq side is **not** "write a
+wrapper" — it's "know the wrapper is there, tune it, and catch what
+survives it."
 
-That default rule, read straight from Spring AI's
-`SpringAiRetryProperties` source: `onClientErrors` is `false` by default,
-meaning **any 4xx response throws `NonTransientAiException` and is *not*
-retried** — unless the code is explicitly listed in
-`spring.ai.retry.on-http-codes`. A `429` is a 4xx status. So out of the
-box, Spring AI treats Groq's rate-limit response as *non*-transient and
-gives up immediately — the exact opposite of what you want. (5xx errors
-fall through a later "default to transient" branch in the same class, so
-server errors already retry without any config change; 429 is the one
-gap.)
+**A trap worth knowing about, because you'll hit it searching the web:**
+Spring AI 1.x wired its OpenAI client through Spring AI's *own* retry
+module, configured with `spring.ai.retry.*` properties and throwing
+`TransientAiException` / `NonTransientAiException`. Most blog posts and
+Stack Overflow answers still describe that setup, and even the current
+OpenAI Chat reference page still shows a `spring.ai.retry` table. But in
+2.x the OpenAI chat model never calls that retry module. `spring.ai.retry.*`
+has no effect on Groq calls, and `org.springframework.ai.retry` isn't even
+on your classpath (it's only an *optional* dependency of the
+autoconfiguration, so the OpenAI starter doesn't bring it in). The
+authoritative answer is the source:
+[`OpenAiChatAutoConfiguration`](https://github.com/spring-projects/spring-ai/blob/v2.0.1/auto-configurations/models/spring-ai-autoconfigure-model-openai/src/main/java/org/springframework/ai/model/openai/autoconfigure/OpenAiChatAutoConfiguration.java)
+hands `timeout` and `max-retries` straight to the SDK client, and nothing
+else.
 
 **Hugging Face (raw `HttpClient`) has no decorator at all.** Day 4/11–14's
 `embed()` method is hand-rolled `java.net.http.HttpClient` — no Spring AI,
 no framework retry machinery, nothing between your code and the socket.
 Today's job here **is** "write a wrapper": a small class that calls the
-same HTTP request, classifies the response the same way Spring AI just
-taught you to (transient vs. non-transient), and retries the transient
+same HTTP request, classifies the response the same way the OpenAI SDK
+just showed you (transient vs. non-transient), and retries the transient
 kind with backoff.
 
 ### Spring Retry is gone; here's what replaced it
@@ -91,19 +104,15 @@ archived. Please migrate to Spring Framework's resilience features." So
 it's disqualified as "the current standard" by its own maintainers'
 notice, not by guesswork.
 
-Its replacement is what Spring AI's own retry autoconfiguration is built
-on: **Spring Framework 7's core resilience module** (`spring-context`,
-`org.springframework.resilience.annotation` package) — `@Retryable`,
-`@EnableResilientMethods`, and a programmatic `RetryTemplate`. It shipped
-with Spring Framework 7.0 / Spring Boot 4.0 (GA November 2025), and the
-`SpringAiRetryAutoConfiguration` source confirms Spring AI's own
-`RetryTemplate` bean is built with `RetryPolicy.builder()` from
-`org.springframework.core.retry` — the *same* API `@Retryable` is a
-declarative front end for. In other words: the framework you're already
-running on now ships the retry engine natively — no third-party dependency
-to add, because it's already on the classpath transitively via
-`spring-boot-starter-web`. That's why today's Hugging Face wrapper uses
-`@Retryable` rather than a third dependency.
+Its replacement is **Spring Framework 7's core resilience module**
+(`spring-context`, `org.springframework.resilience.annotation` package) —
+`@Retryable`, `@EnableResilientMethods`, and a programmatic
+`RetryTemplate` in `org.springframework.core.retry`. It shipped with
+Spring Framework 7.0 / Spring Boot 4.0 (GA November 2025). In other words:
+the framework you're already running on now ships the retry engine
+natively — no third-party dependency to add, because it's already on the
+classpath transitively via `spring-boot-starter-web`. That's why today's
+Hugging Face wrapper uses `@Retryable` rather than a third dependency.
 
 **Resilience4j is still a legitimate, actively-maintained option** — its
 Spring Boot 3 integration guide (`resilience4j-spring-boot3`) is current
@@ -122,21 +131,31 @@ itself — already does natively.
   RPM/RPD/TPM/TPD/ITPM/OTPM dimensions; confirms free-tier limits are
   materially tighter than paid tiers.
 
-**Spring AI's own retry (already wrapping the Groq `ChatClient` call)**
+**The OpenAI Java SDK's own retry (already wrapping the Groq `ChatClient` call)**
 
 - [Spring AI — OpenAI Chat](https://docs.spring.io/spring-ai/reference/api/chat/openai-chat.html) —
-  already cited on Day 4 for the client config; today's relevant section is
-  the `spring.ai.retry.*` property table (`max-attempts`, `backoff.*`,
-  `on-client-errors`, `on-http-codes`, `exclude-on-http-codes`).
-- [`SpringAiRetryProperties.java`](https://github.com/spring-projects/spring-ai/blob/v2.0.1/auto-configurations/common/spring-ai-autoconfigure-retry/src/main/java/org/springframework/ai/retry/autoconfigure/SpringAiRetryProperties.java) —
-  primary-source defaults (pinned to release `v2.0.1`): `maxAttempts=10`,
-  `backoff.initialInterval=2000ms`, `backoff.multiplier=5`,
-  `backoff.maxInterval=180000ms`, `onClientErrors=false`.
-- [`SpringAiRetryAutoConfiguration.java`](https://github.com/spring-projects/spring-ai/blob/v2.0.1/auto-configurations/common/spring-ai-autoconfigure-retry/src/main/java/org/springframework/ai/retry/autoconfigure/SpringAiRetryAutoConfiguration.java) —
-  the actual classification logic: `on-http-codes` is checked first
-  (always retryable if listed), then `on-client-errors` gates 4xx, then
-  `exclude-on-http-codes`, then everything else defaults to retryable —
-  this is the source for "429 needs an explicit opt-in, 5xx doesn't."
+  already cited on Day 4 for the client config. It states that "starting
+  from version 2.0.0-M5, Spring AI uses the official openai-java SDK under
+  the hood for all OpenAI models," and its connection-properties table
+  lists `spring.ai.openai.max-retries` (default `3`) and
+  `spring.ai.openai.timeout` (default 60 sec). *(The same page still
+  carries a `spring.ai.retry.*` table left over from 1.x. As explained in
+  the primer, it doesn't apply to the OpenAI chat model in 2.x, so ignore
+  it.)*
+- [OpenAI Java SDK — README](https://github.com/openai/openai-java) —
+  the "Retries" section (which errors get retried: connection errors,
+  408, 409, 429, 5xx) and the "Error handling" section (the
+  status-code-to-exception table: `RateLimitException`,
+  `InternalServerException`, `OpenAIIoException`, all under
+  `OpenAIException`).
+- [`AbstractOpenAiProperties.java`](https://github.com/spring-projects/spring-ai/blob/v2.0.1/auto-configurations/models/spring-ai-autoconfigure-model-openai/src/main/java/org/springframework/ai/model/openai/autoconfigure/AbstractOpenAiProperties.java) —
+  primary-source defaults (pinned to release `v2.0.1`):
+  `DEFAULT_MAX_RETRIES = 3`, `DEFAULT_TIMEOUT = 60s`.
+- [`OpenAiChatAutoConfiguration.java`](https://github.com/spring-projects/spring-ai/blob/v2.0.1/auto-configurations/models/spring-ai-autoconfigure-model-openai/src/main/java/org/springframework/ai/model/openai/autoconfigure/OpenAiChatAutoConfiguration.java) —
+  where those two properties are handed to the SDK client
+  (`OpenAiSetup.setupSyncClient(..., getTimeout(), getMaxRetries(), ...)`).
+  This is the source for "the SDK does the retrying, not Spring AI's retry
+  module."
 
 **Spring Framework 7 core resilience (current standard — supersedes Spring Retry)**
 
@@ -193,10 +212,11 @@ they look different on the surface but are the same shape underneath:
   and gets a `float[]` back, exactly as it did calling the private
   `embed()` method on Day 11–14. The retry logic is invisible from the
   call site.
-- **Proxy-built, by `@Retryable`, already there:** Spring AI's `RetryTemplate`
-  around the Groq `ChatClient` call, and — once you add `@Retryable` to
-  `EmbeddingClient.embed()` — Spring's own AOP proxy around *your*
-  decorator. `@Retryable` works by generating a dynamic proxy that
+- **Built by someone else, already there:** the OpenAI SDK's retry loop
+  around every Groq HTTP call, which you configure but never see. And,
+  once you add `@Retryable` to `EmbeddingClient.embed()`, Spring's own
+  AOP proxy around *your* decorator. `@Retryable` works by generating a
+  dynamic proxy that
   implements the same call signature and delegates to your real method,
   catching and retrying on the way. You never see the proxy class; you
   just see that calling `embed(...)` sometimes quietly retries before
@@ -223,15 +243,14 @@ git checkout -b feature/rate-limit-resilience
 
 ### 1. No new dependency — turn on what's already there
 
-Both retry engines used today are already on your classpath: Spring AI's
-retry autoconfiguration activated itself the moment you added
-`spring-ai-starter-model-openai` on Day 4, and Spring Framework 7's core
-resilience module ships inside `spring-context`, which
-`spring-boot-starter-web` already depends on. There's nothing to add to
-`pom.xml`. Two things to turn on instead:
+Both retry engines used today are already on your classpath: the OpenAI
+SDK (and its built-in retry) came in with `spring-ai-starter-model-openai`
+on Day 4, and Spring Framework 7's core resilience module ships inside
+`spring-context`, which `spring-boot-starter-web` already depends on.
+There's nothing to add to `pom.xml`. Two things to do instead:
 
-**a. Enable Spring's resilient-method proxies.** Unlike Spring AI's retry
-(which auto-activates), `@Retryable` needs one annotation on your main
+**a. Enable Spring's resilient-method proxies.** Unlike the SDK's retry
+(which is always on), `@Retryable` needs one annotation on your main
 application class:
 
 ```java
@@ -252,8 +271,10 @@ public class DemoApplication {
 }
 ```
 
-**b. Tell Spring AI that `429` is retryable.** Add a `spring.ai.retry`
-block to `application.yml`, sibling to `spring.ai.openai`:
+**b. Tune the SDK's retry for Groq's free tier.** The SDK already treats
+`429` as retryable, so there's no classification to fix, only two numbers
+to make explicit. Add them to `application.yml` directly under
+`spring.ai.openai`:
 
 ```yaml
 spring:
@@ -261,29 +282,21 @@ spring:
     openai:
       base-url: https://api.groq.com/openai/v1
       api-key: ${GROQ_API_KEY}
+      max-retries: 4
+      timeout: 30s
       chat:
         model: llama-3.3-70b-versatile
-    retry:
-      max-attempts: 4
-      backoff:
-        initial-interval: 500ms
-        multiplier: 2
-        max-interval: 4s
-      on-http-codes:
-        - 429
 ```
 
-`on-http-codes: [429]` is deliberately *surgical* rather than flipping
-`on-client-errors: true` (which would retry *every* 4xx, including a `400`
-malformed request that will never succeed no matter how many times you
-resend it — wasted attempts against a real bug). The `max-attempts` and
-`backoff.*` values are scaled down from Spring AI's defaults
-(`max-attempts=10`, `initial-interval=2s`, `multiplier=5`,
-`max-interval=3min` — sensible for production, much too slow for a
-classroom checkpoint) so today's induced failure resolves in seconds, not
-minutes. *Watch the type:* Spring AI's `backoff.multiplier` is an `int`;
-Spring Framework's `@Retryable.multiplier` (step 2 below) is a `double` —
-same word, two different retry engines, two different types.
+`max-retries: 4` (up from the default `3`) gives a free-tier rate limit
+one more backoff window to clear before you give up. It matches the
+`maxRetries = 4` you'll give the Hugging Face side in step 2: same policy,
+two different engines. `timeout: 30s` (down from `60s`) bounds how long a
+single hung request can block `/ask`. With retries on top, the worst case
+is still well under the few minutes a human would wait before
+refreshing. Writing both out, even though the defaults would roughly
+work, documents the decision in the config file where the next person will
+look for it.
 
 ### 2. TODO — build `EmbeddingClient`, the hand-built decorator
 
@@ -291,8 +304,8 @@ The Hugging Face call has no framework wrapping it, so this is the class
 you write. Start from Day 11–14's private `embed()` method — the HTTP call
 itself doesn't change — but move it into its own `@Component` (required
 for `@Retryable`'s proxy to apply, per the pattern note above), and
-classify failures the same way Spring AI just taught you to: transient
-(retry) vs. non-transient (fail immediately).
+classify failures the same way the OpenAI SDK does: transient (retry)
+vs. non-transient (fail immediately).
 
 ```java
 package com.example.demo;
@@ -325,8 +338,8 @@ public class EmbeddingClient {
 
     // TODO: annotate with @Retryable — retry only TransientEmbeddingException,
     //       a handful of attempts, short exponential backoff (mirror the
-    //       spring.ai.retry values above: this is the same policy, a
-    //       different mechanism).
+    //       spring.ai.openai.max-retries value above: this is the same
+    //       policy, a different mechanism).
     public float[] embed(String text) {
         String url = "https://router.huggingface.co/hf-inference/models/"
                 + "sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction";
@@ -377,14 +390,14 @@ public class EmbeddingClient {
   `TransientEmbeddingException` and `NonTransientEmbeddingException`, both
   plain `RuntimeException` subclasses with a `String` (and, for the
   transient one, a `String, Throwable`) constructor. Naming them to
-  mirror Spring AI's own `TransientAiException` / `NonTransientAiException`
-  is deliberate — same shape, same distinction, one you built and one the
-  framework built.
+  mirror the transient/non-transient split the OpenAI SDK makes is
+  deliberate: same distinction, one you built and one the library built.
 - `@Retryable`'s `includes` attribute takes the exception *type(s)* that
   trigger a retry — everything else thrown propagates immediately. Set
   `includes = TransientEmbeddingException.class` so
   `NonTransientEmbeddingException` is never retried.
-- Match today's Spring AI backoff numbers for consistency:
+- Match the Groq side's retry count for consistency, with a short
+  backoff so the checkpoint resolves in seconds:
   `maxRetries = 4, delay = 500, multiplier = 2, maxDelay = 4000` (types:
   `maxRetries`/`delay`/`maxDelay` are `long` milliseconds, `multiplier` is
   a `double`). Total attempts = 1 initial + `maxRetries` retries = 5.
@@ -397,9 +410,14 @@ public class EmbeddingClient {
   and would otherwise get caught and re-wrapped by the same broad
   `catch`), and wrap everything else as `TransientEmbeddingException`.
 - A one-line `log.warn(...)` right before each `TransientEmbeddingException`
-  throw is what makes the checkpoint's retry attempts visible — there's no
-  default listener printing them for you the way Spring AI's own
-  `RetryTemplate` does internally.
+  throw is what makes the checkpoint's retry attempts visible — `@Retryable`
+  doesn't log its attempts for you (and neither does the OpenAI SDK, which
+  is why the Groq-side bonus checkpoint below is timed rather than read
+  from the logs).
+- Optional stretch: Day 8–10's `ChunkingPipeline` still has its own
+  private, un-retried `embed()`. Injecting `EmbeddingClient` there too
+  gives the upload path the same protection, and removes the duplicate
+  Day 11–14 pointed out.
 
 ### 3. TODO — wire `AskController` to fail clean, not raw
 
@@ -417,28 +435,31 @@ public ResponseEntity<?> ask(@RequestBody AskRequest request) {
     //       ResponseEntity.ok(new AskResponse(...)) instead of the bare
     //       record.
     //
-    // TODO: catch (TransientAiException | NonTransientAiException
-    //             | ResourceAccessException
+    // TODO: catch (OpenAIException
     //             | TransientEmbeddingException | NonTransientEmbeddingException e)
     //       and return a 503 with a small JSON error body — never let any
-    //       of these five reach the caller as a raw stack trace.
+    //       of these three reach the caller as a raw stack trace.
     return null;
 }
 ```
 
 *Hints:*
 
-- `TransientAiException` / `NonTransientAiException` are
-  `org.springframework.ai.retry.*` — thrown by Spring AI's own retry
-  handling once *its* attempts are exhausted (or immediately, for a
-  non-retryable code).
-- `ResourceAccessException` is `org.springframework.web.client.*` — check
-  `SpringAiRetryAutoConfiguration`'s `RetryPolicy.builder()` (linked
-  above): it lists `.includes(ResourceAccessException.class)` *alongside*
-  `TransientAiException`, so a connection-level failure talking to Groq
-  (wrong host, timeout) is retried too, but propagates under its own
-  type, not wrapped as `TransientAiException` — you need it in the catch
-  list separately.
+- `OpenAIException` is `com.openai.errors.OpenAIException`, the SDK's
+  base class for every failure it throws once its own retries run out:
+  `RateLimitException` (429), `InternalServerException` (5xx),
+  `OpenAIIoException` (network failure, e.g. wrong host or refused
+  connection), and the non-retryable ones like `UnauthorizedException`
+  (bad key). It reaches your controller unwrapped, because Spring AI's
+  `ChatClient` doesn't translate it into a Spring exception type. Catching
+  the base class covers all of them. It's already on your compile
+  classpath via `spring-ai-starter-model-openai`, so you don't need a new
+  dependency.
+- Don't reach for `TransientAiException` / `NonTransientAiException` from
+  `org.springframework.ai.retry`, even though older tutorials catch them.
+  Per the primer, that package isn't on your classpath in 2.x, so the
+  import won't compile. And even if you added it, the OpenAI client never
+  throws those types.
 - `ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", "..."))`
   is the shape: a `503`, not a `500` — telling the caller "the backend had
   a bad moment, try again," which is true, versus a `500`'s implication
@@ -467,14 +488,18 @@ You're done with Day 15 when:
      `{"error":"The AI service is temporarily unavailable. Please try again shortly."}`
      — not a stack trace, not a hung connection.
    - Revert the host string and restart; step 1's happy path passes again.
-3. **Bonus (optional) — the Groq side.** Temporarily point
-   `spring.ai.openai.base-url` at an unreachable address (wrong port is
-   simplest: append a stray digit) and repeat the curl. You should see
-   Spring AI's own `RetryTemplate` log its retries (it registers a
-   `RetryListener` that logs `"Retry error. Retry count:..."` at `WARN`
-   on every failed attempt — no code of yours produces that line), then
-   the same clean `503` — this time via the `ResourceAccessException`
-   branch of your catch clause. Revert the base URL afterward.
+3. **Bonus (optional) — the Groq side.** With the Hugging Face host
+   restored, temporarily point `spring.ai.openai.base-url` at an
+   unreachable address (e.g. `http://127.0.0.1:1/openai/v1`, since nothing
+   listens on port 1) and repeat the curl. Unlike step 2, **nothing appears
+   in the logs**: the OpenAI SDK retries silently. What you *can* observe
+   is time. The curl takes roughly 7 seconds with `max-retries: 4` (about
+   3.5 seconds at the default `3`, because each extra retry roughly doubles
+   the backoff) before returning the same clean `503`, this time via the
+   `OpenAIException` branch of your catch clause (concretely an
+   `OpenAIIoException`). That delay is your evidence the retries happened,
+   and changing `max-retries` and watching it move is the quickest proof
+   the setting is actually live. Revert the base URL afterward.
 
 If step 2's failure comes back as a raw `500` with a stack trace in the
 response body, the catch clause isn't matching the exception actually
@@ -497,12 +522,17 @@ dependency, and a bounded worst case instead of retrying forever. And
 close with the part most answers skip: what happens when retries *don't*
 work — a clean, typed error response to the caller, because a stack trace
 or a hung request is its own failure on top of the original one. The
-detail that makes this demonstrable rather than textbook: you can point at
-a specific default (`on-client-errors=false` on the Groq side) that got
-the classification wrong out of the box, and explain exactly what you
-changed and why — that's the difference between "I know retry is a thing"
-and "I've actually read a retry library's default behavior and found the
-gap in it."
+detail that makes this demonstrable rather than textbook: you can explain
+that there were *two* retry layers, and why you built only one of them.
+The Groq client already retried inside the OpenAI SDK, so you tuned it
+rather than wrapping it a second time; stacking retry loops multiplies
+attempts against a provider that's already throttling you. And you
+found that out by reading the framework's source, not its docs page. The
+widely documented `spring.ai.retry.*` settings turned out to do nothing
+for the OpenAI client in Spring AI 2.x, because the client moved onto the
+official SDK. That's the difference between "I know retry is a thing" and
+"I checked where retry actually happens in my stack before adding more of
+it."
 
 ## Answer Key (attempt it yourself first!)
 
@@ -642,7 +672,7 @@ public class DemoApplication {
 }
 ```
 
-**`application.yml`** (Day 11–14's config, plus the new `retry` block)
+**`application.yml`** (Day 11–14's config, plus the two SDK retry settings)
 
 ```yaml
 spring:
@@ -652,16 +682,10 @@ spring:
     openai:
       base-url: https://api.groq.com/openai/v1
       api-key: ${GROQ_API_KEY}
+      max-retries: 4
+      timeout: 30s
       chat:
         model: llama-3.3-70b-versatile
-    retry:
-      max-attempts: 4
-      backoff:
-        initial-interval: 500ms
-        multiplier: 2
-        max-interval: 4s
-      on-http-codes:
-        - 429
 ```
 
 **`AskController.java`** (complete — `PromptBuilder` and `ContextChunk` are
@@ -678,14 +702,13 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.retry.NonTransientAiException;
-import org.springframework.ai.retry.TransientAiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.ResourceAccessException;
+
+import com.openai.errors.OpenAIException;
 
 @RestController
 public class AskController {
@@ -746,7 +769,7 @@ public class AskController {
                     .toList();
 
             return ResponseEntity.ok(new AskResponse(answer, citedDocuments));
-        } catch (TransientAiException | NonTransientAiException | ResourceAccessException
+        } catch (OpenAIException
                 | TransientEmbeddingException | NonTransientEmbeddingException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("error",

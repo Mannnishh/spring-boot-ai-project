@@ -136,17 +136,19 @@ git checkout -b feature/jwt-security
 
 ### 1. Add the dependencies
 
-`spring-boot-starter-oauth2-resource-server` pulls in Spring Security
-itself (`spring-boot-starter-security`) plus the JOSE/JWT decoding
-support (`NimbusJwtDecoder` and friends) transitively — confirmed by its
-own POM on Maven Central — so it's the only Spring dependency you need to
-add. jjwt is not a Spring project, so it's pinned to an explicit verified
+`spring-boot-starter-security-oauth2-resource-server` pulls in Spring
+Security itself (`spring-boot-starter-security`) plus the JOSE/JWT
+decoding support (`NimbusJwtDecoder` and friends) transitively (confirmed
+by its own POM on Maven Central), so it's the only Spring dependency you
+need to add. *(Older guides call it `spring-boot-starter-oauth2-resource-server`.
+That name still resolves, but Spring Boot 4 marks it deprecated in favor
+of this one.)* jjwt is not a Spring project, so it's pinned to an explicit verified
 version:
 
 ```xml
 <dependency>
     <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
 </dependency>
 <dependency>
     <groupId>io.jsonwebtoken</groupId>
