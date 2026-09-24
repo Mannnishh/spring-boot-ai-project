@@ -285,7 +285,7 @@ spring:
       max-retries: 4
       timeout: 30s
       chat:
-        model: llama-3.3-70b-versatile
+        model: openai/gpt-oss-120b
 ```
 
 `max-retries: 4` (up from the default `3`) gives a free-tier rate limit
@@ -314,6 +314,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -321,6 +322,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -349,7 +351,7 @@ public class EmbeddingClient {
                     .header("Authorization", "Bearer " + hfApiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "{\"inputs\":" + jsonString(text) + "}"))
+                            objectMapper.writeValueAsString(Map.of("inputs", text))))
                     .build();
 
             HttpResponse<String> response = http.send(
@@ -361,10 +363,11 @@ public class EmbeddingClient {
             // TODO: else if status != 200, throw NonTransientEmbeddingException
             //       (not retryable — retrying a malformed request won't help).
 
-            double[][] vectors = objectMapper.readValue(response.body(), double[][].class);
-            float[] embedding = new float[vectors[0].length];
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode vector = root.get(0).isArray() ? root.get(0) : root; // [...] or [[...]]
+            float[] embedding = new float[vector.size()];
             for (int i = 0; i < embedding.length; i++) {
-                embedding[i] = (float) vectors[0][i];
+                embedding[i] = (float) vector.get(i).asDouble();
             }
             return embedding;
         } catch (Exception e) {
@@ -375,11 +378,6 @@ public class EmbeddingClient {
             //       wrapping e as the cause.
             throw new RuntimeException(e);
         }
-    }
-
-    private static String jsonString(String s) {
-        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r") + "\"";
     }
 }
 ```
@@ -579,6 +577,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -586,6 +585,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -612,7 +612,7 @@ public class EmbeddingClient {
                     .header("Authorization", "Bearer " + hfApiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "{\"inputs\":" + jsonString(text) + "}"))
+                            objectMapper.writeValueAsString(Map.of("inputs", text))))
                     .build();
 
             HttpResponse<String> response = http.send(
@@ -630,10 +630,11 @@ public class EmbeddingClient {
                         "embedding call failed: HTTP " + status + " " + response.body());
             }
 
-            double[][] vectors = objectMapper.readValue(response.body(), double[][].class);
-            float[] embedding = new float[vectors[0].length];
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode vector = root.get(0).isArray() ? root.get(0) : root; // [...] or [[...]]
+            float[] embedding = new float[vector.size()];
             for (int i = 0; i < embedding.length; i++) {
-                embedding[i] = (float) vectors[0][i];
+                embedding[i] = (float) vector.get(i).asDouble();
             }
             return embedding;
         } catch (TransientEmbeddingException | NonTransientEmbeddingException e) {
@@ -643,11 +644,6 @@ public class EmbeddingClient {
                     e.toString());
             throw new TransientEmbeddingException("embedding call failed", e);
         }
-    }
-
-    private static String jsonString(String s) {
-        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r") + "\"";
     }
 }
 ```
@@ -685,7 +681,7 @@ spring:
       max-retries: 4
       timeout: 30s
       chat:
-        model: llama-3.3-70b-versatile
+        model: openai/gpt-oss-120b
 ```
 
 **`AskController.java`** (complete — `PromptBuilder` and `ContextChunk` are
