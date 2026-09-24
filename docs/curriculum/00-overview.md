@@ -80,7 +80,7 @@ everything else here and beyond.
 | Day 5 | RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs. |
 | Day 6–7 | File upload + Tika text extraction. |
 | Before Day 8 | One-time upgrade to Spring Boot 4 + Spring AI 2 (only if your project was generated on older versions). |
-| Day 8–10 | Chunking strategy + embedding pipeline → pgvector storage. Java pattern note: Strategy pattern for pluggable chunking strategies. |
+| Day 8–10 | Carry-over fixes from the Day 3–7 review, then chunking strategy + embedding pipeline → pgvector storage, run automatically on every upload. Java pattern note: Strategy pattern for pluggable chunking strategies. |
 | Day 11–14 | `/ask` endpoint: embed → similarity search → prompt build → Groq → cited answer, plus an iteration day for answer quality (chunk size, prompt tweaks, citation format). Java pattern note: Builder pattern for prompt construction. |
 | Day 15 | Rate-limit/retry resilience for free-tier APIs [core]. Java pattern note: Decorator pattern for the retry wrapper. |
 | Day 16 | Spring Security (JWT) [optional — cut first if behind]. |

@@ -193,8 +193,9 @@ for `HF_API_KEY`).
 
 Reuse Day 4's Hugging Face call, unchanged in shape — same endpoint
 (`https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction`),
-same `Authorization: Bearer hf_...` header, same `double[][]` → `float[]`
-parsing. `ChunkingPipeline.embed()` from Day 8–10 is the exact template —
+same `Authorization: Bearer hf_...` header, same Jackson-built request body
+and shape-tolerant parsing. `ChunkingPipeline.embed()` from Day 8–10 is the
+exact template —
 copy its shape into a private `embed(String)` method on `AskController`
 (inject `@Value("${HF_API_KEY}")` the same way).
 
@@ -351,7 +352,10 @@ in order — most bad answers trace back to retrieval, not the prompt:
    (cheap, doesn't change chunk count much); a larger `chunkSize` is the
    next lever, but remember Day 8–10's whole argument for chunking at all
    was avoiding one vector that averages too many topics — don't grow it
-   back toward document-sized chunks.
+   back toward document-sized chunks. Chunk settings only apply to
+   documents ingested *after* the change, so after each change empty both
+   tables and re-upload the six files (the two commands at the end of Day
+   8–10's step 5). Otherwise you're testing the old chunks.
 3. **Top-k.** If the right chunk exists in the table (confirm with a
    direct SQL query, same as Day 8–10's checkpoint) but doesn't make the
    top `TOP_K = 5`, raise it. If the model gives a hedgy or wrong answer
@@ -377,10 +381,11 @@ in order — most bad answers trace back to retrieval, not the prompt:
 
 ## Checkpoint
 
-With all six `docs/curriculum/sample-data/` files uploaded per Day 6–7
-(including `vendor-contract-summary-scanned.pdf`, which contributes no
-retrievable chunks — its empty extraction means it simply never appears
-in any retrieval result) and chunked/embedded per Day 8–10:
+With all six `docs/curriculum/sample-data/` files uploaded, and therefore
+chunked and embedded automatically by Day 8–10's step 5 (including
+`vendor-contract-summary-scanned.pdf`, which contributes no retrievable
+chunks; its empty extraction means it never appears in any retrieval
+result):
 
 ```bash
 curl -X POST localhost:8080/ask \
@@ -507,6 +512,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -514,6 +520,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
@@ -598,9 +605,8 @@ public class AskController {
         return sb.append("]").toString();
     }
 
-    // Day 4's Hugging Face embeddings call, unchanged in shape — see
-    // 04-day4-groq-embeddings-hello-world.md, step 4, and Day 8-10's
-    // ChunkingPipeline.embed().
+    // Day 8–10's ChunkingPipeline.embed(): Jackson-built request body, status
+    // check, and both response shapes ([...] and [[...]]) accepted.
     private float[] embed(String text) {
         try {
             String url = "https://router.huggingface.co/hf-inference/models/"
@@ -611,7 +617,7 @@ public class AskController {
                     .header("Authorization", "Bearer " + hfApiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "{\"inputs\":" + jsonString(text) + "}"))
+                            objectMapper.writeValueAsString(Map.of("inputs", text))))
                     .build();
 
             HttpResponse<String> response = http.send(
@@ -622,22 +628,18 @@ public class AskController {
                         + response.statusCode() + " " + response.body());
             }
 
-            double[][] vectors = objectMapper.readValue(
-                    response.body(), double[][].class);
-
-            float[] embedding = new float[vectors[0].length];
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode vector = root.get(0).isArray() ? root.get(0) : root;
+            float[] embedding = new float[vector.size()];
             for (int i = 0; i < embedding.length; i++) {
-                embedding[i] = (float) vectors[0][i];
+                embedding[i] = (float) vector.get(i).asDouble();
             }
             return embedding;
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("embedding call failed", e);
         }
-    }
-
-    private static String jsonString(String s) {
-        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r") + "\"";
     }
 }
 ```

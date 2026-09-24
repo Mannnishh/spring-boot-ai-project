@@ -4,6 +4,9 @@
 > AI 1.x version, do the [one-time upgrade](07b-upgrade-boot4-spring-ai2.md)
 > first. Everything from here on is tested against Spring Boot 4.1.1 +
 > Spring AI 2.0.1.
+>
+> Then do the [carry-over fixes](#carry-over-fixes-from-days-37) below.
+> They repair Day 3–7 problems that start to matter today.
 
 **Focus:** Turn the extracted text from Day 6–7 into *retrievable* data.
 You'll add a pluggable `ChunkingStrategy`, split each document's text into
@@ -16,6 +19,156 @@ This day is the bridge between "I can extract text" (Day 6–7) and "I can
 answer questions from it" (Day 11–14). Days 11–14 assume the chunk table
 already exists and is queryable, so the deliverable here is a working,
 *queried* `chunk` table — not just code that compiles.
+
+## Carry-over fixes from Days 3–7
+
+A review of the Day 3–7 code (yours, and this curriculum's own answer keys)
+found problems that start to matter today, because today is when stored
+text becomes chunks. Fix them first, on their own branch, and merge that
+before starting the Day 8 branch:
+
+```bash
+git checkout -b fix/carry-over-days-3-7
+```
+
+**1. Tika silently truncates long documents.** `Tika.parseToString` stops
+at 100,000 characters by default and returns what it has, with no error.
+A 150,000-character file is stored as 99,999 characters, and today's
+chunker can only chunk what was stored, so the rest of the document would
+never be retrievable. Lift the cap where Day 6–7 creates the bean:
+
+```java
+package com.example.demo;
+
+import org.apache.tika.Tika;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class TikaConfig {
+
+    @Bean
+    public Tika tika() {
+        Tika tika = new Tika();
+        tika.setMaxStringLength(-1); // default 100_000 silently truncates long documents
+        return tika;
+    }
+}
+```
+
+`-1` means no limit. A production system would set a generous cap and
+reject larger files, since the whole text is held in memory.
+
+**2. An empty upload returns 500.** Tika throws `ZeroByteFileException`
+for a zero-byte file. Sending an empty file is the client's mistake, so
+answer `400` before calling Tika, at the top of `upload(...)`:
+
+```java
+if (file.isEmpty()) {
+    return ResponseEntity.badRequest().build();
+}
+```
+
+**3. `POST /documents` lets a client overwrite any document.** Day 3's
+`create` binds the request JSON straight onto the `Document` entity, `id`
+included, and when `id` is set, `save()` updates that row instead of
+inserting a new one. Sending `{"id":1,"filename":"x","content":"gone"}`
+replaces document 1 and still answers `201 Created`. From today that gets
+worse: document 1's chunks would keep describing text that no longer
+exists. Accept a record holding only the fields a client may choose, and
+let the server decide `id` and `uploadedAt`:
+
+```java
+package com.example.demo;
+
+public record CreateDocumentRequest(String filename, String content) {}
+```
+
+```java
+@PostMapping
+public ResponseEntity<Document> create(@RequestBody CreateDocumentRequest request) {
+    Document document = new Document(request.filename(), request.content(), Instant.now());
+    Document saved = repository.save(document);
+    return ResponseEntity.created(URI.create("/documents/" + saved.getId())).body(saved);
+}
+```
+
+This bug is called *over-posting* or *mass assignment*. It's worth
+knowing by name for interviews, and it's the reason APIs take request
+records (like Day 11–14's `AskRequest`) rather than entities.
+
+**4. `./mvnw test` fails.** The test Spring Initializr generated
+(`contextLoads`) starts the whole application, so it needs Postgres and
+both API keys, and fails without them. A Dockerfile that builds with
+`-DskipTests` hides this. Delete the generated `*ApplicationTests.java`
+and replace it with a *slice* test that starts only the web layer and
+mocks everything beneath it, so it runs anywhere:
+
+```java
+package com.example.demo;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.Optional;
+
+import org.apache.tika.Tika;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+@WebMvcTest(DocumentController.class)
+class DocumentControllerTest {
+
+    @Autowired
+    private MockMvc mvc;
+
+    @MockitoBean
+    private DocumentRepository repository;
+
+    @MockitoBean
+    private Tika tika;
+
+    @Test
+    void unknownIdReturns404() throws Exception {
+        when(repository.findById(42L)).thenReturn(Optional.empty());
+        mvc.perform(get("/documents/42")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void emptyUploadReturns400() throws Exception {
+        MockMultipartFile empty =
+                new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
+        mvc.perform(multipart("/documents/upload").file(empty))
+                .andExpect(status().isBadRequest());
+    }
+}
+```
+
+`@WebMvcTest` lives in `org.springframework.boot.webmvc.test.autoconfigure`
+on Spring Boot 4 (older guides show a different package), and it comes
+from the `spring-boot-starter-webmvc-test` dependency the upgrade guide
+added. Every bean the controller's constructor takes needs a
+`@MockitoBean`. You'll add one more in step 5 today.
+
+**5. (Optional) Uploads over 1 MB are rejected** with `413`, Spring's
+default limit. Real PDFs are often bigger:
+
+```properties
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=10MB
+```
+
+**Carry-over checkpoint:** `./mvnw test` passes with no database running;
+uploading an empty file returns `400`; the overwrite `curl` from fix 3
+creates a *new* document and leaves document 1 alone. Merge through a PR
+(`fix: carry over days 3-7 review fixes`), then branch Day 8 from the
+updated `main`.
 
 ## Concept primer
 
@@ -301,8 +454,7 @@ public class Chunk {
   "vector(384)")` spells out the same thing explicitly; keeping both is
   belt-and-suspenders and matches the Hibernate guide.
 - **`float[]`** (not `double[]`, not `String`) matches what Day 4's
-  `helloEmbedding()` already returns after its `double[][]` → `float[]`
-  conversion.
+  `helloEmbedding()` already returns.
 - Day 3's `ddl-auto: update` will create the `chunk` table from this entity
   on startup — but **only if the `vector` extension is enabled first**. Run
   this once in your `ragdb` database (psql or `docker exec`):
@@ -353,23 +505,34 @@ public class ChunkingPipeline {
 
 *Hints:*
 
-- **`embed(String)` is Day 4's call, verbatim.** Same endpoint
+- **`embed(String)` is Day 4's call, with two fixes.** Same endpoint
   (`https://router.huggingface.co/hf-inference/models/
-  sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction`), same
-  `Authorization: Bearer hf_...` header, same array-of-arrays response parsed
-  into a `float[]`. The only difference is the input is a chunk string
-  instead of `"hello world"`. Inject the key with `@Value("${HF_API_KEY}")`.
+  sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction`) and
+  same `Authorization: Bearer hf_...` header. Inject the key with
+  `@Value("${HF_API_KEY}")`. Two things change now that the input is real
+  document text instead of `"hello world"`:
+  - **Build the request body with Jackson, not by hand:**
+    `objectMapper.writeValueAsString(Map.of("inputs", text))`. Extracted
+    text can contain tabs, form feeds and other control characters, and a
+    hand-written escaper that misses one produces invalid JSON, which
+    Hugging Face rejects with a `400`.
+  - **Accept both response shapes.** For a single string input, Hugging
+    Face returns a flat array `[0.01, …]`. Day 4's code expected it wrapped
+    as `[[0.01, …]]`, and you may already have hit that. Parse with
+    `readTree` and unwrap only if the first element is itself an array.
+    The answer key shows both fixes.
+- **Check the status code before parsing.** A bad key, a model that's
+  still loading, or a rate limit comes back as a JSON *error object*.
+  Parsing that as numbers produces a confusing Jackson error that hides the
+  real cause, so throw with the status and body instead.
 - **One `Chunk` row per chunk.** `documentId` is the FK back to the source
   `Document`; `content` is the chunk text; `embedding` is the returned
   `float[]`.
 - **The `ChunkRepository`** is a one-liner like Day 3's:
   `interface ChunkRepository extends JpaRepository<Chunk, Long> {}` — you'll
   add the similarity query to it in step 4.
-- **How do you run it?** The method itself is the deliverable; trigger it
-  however is quickest for you — a `CommandLineRunner` bean that fetches a
-  `Document` by id and calls `ingest(id, doc.getContent())`, a scratch test,
-  or a temporary endpoint. Days 11–14 will call this same logic from the
-  `/ask` flow, so don't over-invest in the trigger now.
+- **How does it get run?** Step 5 calls it from the upload endpoint, so
+  every uploaded document is chunked and embedded as it arrives.
 
 ### 4. Worked example — the native pgvector similarity query
 
@@ -417,6 +580,63 @@ column too, and Hibernate maps it back to `float[]` through the same
 `@JdbcTypeCode(SqlTypes.VECTOR)` declared on the entity — that's what makes
 `List<Chunk>` (rather than `List<Object[]>`) work here.
 
+### 5. TODO — run the pipeline on every upload, and clean up on delete
+
+Nothing calls `ingest(...)` yet. Wire it into the upload endpoint so every
+document is chunked and embedded the moment it arrives. That's also what
+makes a document uploaded *during a demo* answerable on Day 11–14 without a
+manual step.
+
+In `DocumentController`:
+
+- inject `ChunkingPipeline`;
+- in `upload(...)`, right after `repository.save(...)`, call
+  `chunkingPipeline.ingest(saved.getId(), saved.getContent())`;
+- in `delete(...)`, remove the document's chunks before the document
+  itself. Otherwise they stay in the `chunk` table, keep appearing in
+  similarity search, and Day 11–14 would cite a document that no longer
+  exists.
+
+For the delete, give `ChunkRepository` a derived delete query and the
+pipeline a method that calls it:
+
+```java
+@Transactional
+void deleteByDocumentId(Long documentId);
+```
+
+*Hints:*
+
+- `@Transactional` here is
+  `org.springframework.transaction.annotation.Transactional`. A derived
+  *delete* query has to run inside a transaction, and query methods you
+  declare yourself don't get a read-write one automatically. Leave it off
+  and the delete fails with `No EntityManager with actual transaction
+  available`.
+- Add `@MockitoBean private ChunkingPipeline chunkingPipeline;` to the
+  carry-over `DocumentControllerTest`. Without it, the test fails with
+  `No qualifying bean of type ChunkingPipeline`. That's the test doing its
+  job: the controller now depends on something new.
+- Ingestion runs inside the upload request, one Hugging Face call per
+  chunk. That's fine for the sample files (one or two chunks each). A large
+  document means many calls in a row, and if one fails, the upload returns
+  an error with the document saved but only partly chunked. Day 15 adds
+  retries; a production system would move ingestion to a background job.
+- **Re-ingest the six sample files.** They were uploaded before chunking
+  existed, so they have no chunks. Empty both tables and upload them again:
+
+  ```bash
+  docker compose exec db sh -c \
+    'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "TRUNCATE document, chunk RESTART IDENTITY;"'
+
+  for f in docs/curriculum/sample-data/*.txt docs/curriculum/sample-data/*.pdf; do
+    curl -s -o /dev/null -w "%{http_code} $f\n" -F "file=@$f" localhost:8080/documents/upload
+  done
+  ```
+
+  The scanned PDF still uploads, but its empty text produces no chunks.
+  That's the Day 6–7 lesson carried forward: it can never be retrieved.
+
 ## Checkpoint
 
 You're done with Days 8–10 when:
@@ -425,9 +645,9 @@ You're done with Days 8–10 when:
    without error — meaning the `chunk` table was created with its
    `vector(384)` column (so the `CREATE EXTENSION vector` step ran and the
    `hibernate-vector` dependency is present).
-2. After uploading a **multi-paragraph** document on Day 6–7's endpoint and
-   running the pipeline against it, a manual query shows **multiple** chunk
-   rows, each with a non-null embedding:
+2. After re-uploading the six sample files (step 5), a manual query shows
+   **multiple** chunk rows for `remote-work-policy.txt`, the longest sample
+   file, each with a non-null embedding:
 
    ```sql
    SELECT count(*) FROM chunk WHERE document_id = <the document's id>;
@@ -452,7 +672,11 @@ You're done with Days 8–10 when:
    *Trick for a no-paste check:* use a stored chunk's own embedding as the
    query vector — `ORDER BY embedding <=> (SELECT embedding FROM chunk LIMIT 1)`
    — and that chunk should rank first with distance 0.
-4. Commit on the feature branch with a Conventional Commits message (e.g.
+4. `DELETE /documents/<id>` removes that document's chunks too:
+   `SELECT count(*) FROM chunk WHERE document_id = <id>;` returns `0`
+   afterwards. Then upload the file again so all six are back for Day 11–14.
+5. `./mvnw test` still passes.
+6. Commit on the feature branch with a Conventional Commits message (e.g.
    `feat: add chunking strategy and embedding pipeline to pgvector`), push,
    and merge via a pull request per Day 1.
 
@@ -489,10 +713,11 @@ for a dataset that scans in milliseconds.
 ## Answer Key (attempt it yourself first!)
 
 Only read this after the checkpoint queries pass. The `ChunkingStrategy`
-interface, `FixedSizeChunkingStrategy`, and the `findNearest` similarity query
-are **already shown in full above** — they are not repeated here. This key
-adds only the two pieces that were TODO: the `Chunk` entity and the pipeline
-method.
+interface and `FixedSizeChunkingStrategy` are **already shown in full
+above** and aren't repeated here. This key adds the pieces that were TODO:
+the `Chunk` entity, the pipeline, `ChunkRepository` with the step 5 delete
+query, and `DocumentController` with the carry-over fixes and the step 5
+wiring.
 
 **`Chunk.java`**
 
@@ -564,10 +789,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -595,8 +822,12 @@ public class ChunkingPipeline {
         }
     }
 
-    // Day 4's Hugging Face embeddings call, unchanged in shape —
-    // see 04-day4-groq-embeddings-hello-world.md, step 4.
+    public void remove(Long documentId) {
+        chunkRepository.deleteByDocumentId(documentId);
+    }
+
+    // Day 4's Hugging Face embeddings call, with the request body built by
+    // Jackson and both response shapes accepted.
     private float[] embed(String text) {
         try {
             String url = "https://router.huggingface.co/hf-inference/models/"
@@ -607,7 +838,7 @@ public class ChunkingPipeline {
                     .header("Authorization", "Bearer " + hfApiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "{\"inputs\":" + jsonString(text) + "}"))
+                            objectMapper.writeValueAsString(Map.of("inputs", text))))
                     .build();
 
             HttpResponse<String> response = http.send(
@@ -618,22 +849,130 @@ public class ChunkingPipeline {
                         + response.statusCode() + " " + response.body());
             }
 
-            double[][] vectors = objectMapper.readValue(
-                    response.body(), double[][].class);
-
-            float[] embedding = new float[vectors[0].length];
+            // A single string input comes back flat, [0.01, ...]; accept the
+            // nested [[0.01, ...]] form too.
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode vector = root.get(0).isArray() ? root.get(0) : root;
+            float[] embedding = new float[vector.size()];
             for (int i = 0; i < embedding.length; i++) {
-                embedding[i] = (float) vectors[0][i];
+                embedding[i] = (float) vector.get(i).asDouble();
             }
             return embedding;
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("embedding call failed", e);
         }
     }
+}
+```
 
-    private static String jsonString(String s) {
-        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r") + "\"";
+**`ChunkRepository.java`** (step 4's query plus step 5's delete)
+
+```java
+package com.example.demo;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+public interface ChunkRepository extends JpaRepository<Chunk, Long> {
+
+    @Query(value = "SELECT * FROM chunk "
+            + "ORDER BY embedding <=> CAST(:queryVector AS vector) LIMIT :k",
+           nativeQuery = true)
+    List<Chunk> findNearest(@Param("queryVector") String queryVector,
+                            @Param("k") int k);
+
+    @Transactional
+    void deleteByDocumentId(Long documentId);
+}
+```
+
+**`DocumentController.java`** (carry-over fixes 2 and 3, plus step 5)
+
+```java
+package com.example.demo;
+
+import java.io.IOException;
+import java.net.URI;
+import java.time.Instant;
+import java.util.List;
+
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/documents")
+public class DocumentController {
+
+    private final DocumentRepository repository;
+    private final Tika tika;
+    private final ChunkingPipeline chunkingPipeline;
+
+    public DocumentController(DocumentRepository repository, Tika tika,
+                              ChunkingPipeline chunkingPipeline) {
+        this.repository = repository;
+        this.tika = tika;
+        this.chunkingPipeline = chunkingPipeline;
+    }
+
+    @GetMapping
+    public List<Document> findAll() {
+        return repository.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Document> findById(@PathVariable Long id) {
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<Document> create(@RequestBody CreateDocumentRequest request) {
+        Document document = new Document(request.filename(), request.content(), Instant.now());
+        Document saved = repository.save(document);
+        return ResponseEntity.created(URI.create("/documents/" + saved.getId())).body(saved);
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file)
+            throws IOException, TikaException {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        String extracted = tika.parseToString(file.getInputStream());
+        Document document = new Document(
+                file.getOriginalFilename(), extracted, Instant.now());
+        Document saved = repository.save(document);
+        chunkingPipeline.ingest(saved.getId(), saved.getContent());
+        return ResponseEntity
+                .created(URI.create("/documents/" + saved.getId()))
+                .body(saved);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        if (!repository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        chunkingPipeline.remove(id);
+        repository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 }
 ```
