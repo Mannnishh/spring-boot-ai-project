@@ -49,7 +49,8 @@ public class DocumentController {
   }
 
   @PostMapping
-  public ResponseEntity<Document> create(@RequestBody Document document) {
+  public ResponseEntity<Document> create(@RequestBody CreateDocumentRequest request) {
+    Document document = new Document(request.filename(), request.content(), Instant.now());
     Document saved = repository.save(document);
     return ResponseEntity.created(URI.create("/documents/" + saved.getId())).body(saved);
   }
