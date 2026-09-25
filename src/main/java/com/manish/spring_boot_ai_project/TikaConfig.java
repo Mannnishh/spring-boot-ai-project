@@ -9,6 +9,8 @@ public class TikaConfig {
 
   @Bean
   public Tika tika() {
-    return new Tika();
+    Tika tika = new Tika();
+    tika.setMaxStringLength(-1);
+    return tika;
   }
 }
