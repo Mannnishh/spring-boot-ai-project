@@ -61,6 +61,10 @@
             <version>4.0.0</version>
             <type>pom</type>
         </dependency>
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-vector</artifactId>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
