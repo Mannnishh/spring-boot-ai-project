@@ -15,10 +15,13 @@ public class DocumentController {
 
   private final DocumentRepository repository;
   private final Tika tika;
+  private final ChunkingPipeline chunkingPipeline;
 
-  public DocumentController(DocumentRepository repository, Tika tika) {
+  public DocumentController(
+      DocumentRepository repository, Tika tika, ChunkingPipeline chunkingPipeline) {
     this.repository = repository;
     this.tika = tika;
+    this.chunkingPipeline = chunkingPipeline;
   }
 
   @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -31,6 +34,9 @@ public class DocumentController {
     Document document =
         new Document(file.getOriginalFilename(), extractedText.trim(), Instant.now());
     Document saved = repository.save(document);
+
+    // 2. Automatically chunk, embed, and store in pgvector!
+    chunkingPipeline.ingest(saved.getId(), saved.getContent());
 
     return ResponseEntity.created(URI.create("/documents/" + saved.getId())).body(saved);
   }
@@ -52,6 +58,8 @@ public class DocumentController {
   public ResponseEntity<Document> create(@RequestBody CreateDocumentRequest request) {
     Document document = new Document(request.filename(), request.content(), Instant.now());
     Document saved = repository.save(document);
+    // Automatically chunk and vectorize raw text creations as well
+    chunkingPipeline.ingest(saved.getId(), saved.getContent());
     return ResponseEntity.created(URI.create("/documents/" + saved.getId())).body(saved);
   }
 

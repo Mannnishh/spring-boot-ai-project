@@ -20,6 +20,8 @@ class DocumentControllerTest {
 
   @MockitoBean private Tika tika;
 
+  @MockitoBean private ChunkingPipeline chunkingPipeline;
+
   @Test
   void unknownIdReturns404() throws Exception {
     when(repository.findById(42L)).thenReturn(Optional.empty());
