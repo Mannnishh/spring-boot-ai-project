@@ -5,12 +5,19 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class ChunkingPipeline {
+
+  private static final Logger log = LoggerFactory.getLogger(ChunkingPipeline.class);
 
   private final ChunkingStrategy chunkingStrategy;
   private final ChunkRepository chunkRepository;
@@ -46,6 +53,11 @@ public class ChunkingPipeline {
     }
   }
 
+  @Retryable(
+      retryFor = {Exception.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2.0))
+
   // Hugging Face 384-dimensional embedding call
   public float[] embed(String text) throws Exception {
     String url =
@@ -75,5 +87,13 @@ public class ChunkingPipeline {
       float[][] nested = objectMapper.readValue(response.body(), float[][].class);
       return nested[0];
     }
+  }
+
+  // Fallback called if all 3 attempts fail
+  @Recover
+  public float[] recoverEmbed(Exception e, String text) {
+    log.error("Embedding API permanently failed after 3 attempts: {}", e.getMessage());
+    throw new RuntimeException(
+        "Embedding service is currently unavailable. Please try again later.", e);
   }
 }
