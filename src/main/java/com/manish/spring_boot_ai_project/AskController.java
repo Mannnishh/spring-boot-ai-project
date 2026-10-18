@@ -7,8 +7,13 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +22,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @RestController
 public class AskController {
+
+  private static final Logger log = LoggerFactory.getLogger(AskController.class);
 
   private static final int TOP_K = 5;
 
@@ -52,6 +59,10 @@ public class AskController {
     this.hfApiKey = hfApiKey;
   }
 
+  @Retryable(
+      retryFor = {Exception.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2.0))
   @PostMapping("/ask")
   public AskResponse ask(@RequestBody AskRequest request) {
     // Step 1: Embed the user's question (384 dimensions)
@@ -82,6 +93,15 @@ public class AskController {
         context.stream().map(ContextChunk::sourceFilename).distinct().toList();
 
     return new AskResponse(answer, citedDocuments);
+  }
+
+  @Recover
+  public AskResponse recoverAsk(Exception e, AskRequest request) {
+    log.error(
+        "All retry attempts failed for question '{}': {}", request.question(), e.getMessage());
+    return new AskResponse(
+        "The AI service is currently busy or unavailable. Please try again in a moment.",
+        List.of());
   }
 
   // Helper: Safely look up filename from DocumentRepository
