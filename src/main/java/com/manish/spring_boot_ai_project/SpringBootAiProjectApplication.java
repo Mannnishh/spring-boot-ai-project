@@ -2,7 +2,9 @@ package com.manish.spring_boot_ai_project;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.retry.annotation.EnableRetry;
 
+@EnableRetry
 @SpringBootApplication
 public class SpringBootAiProjectApplication {
 
