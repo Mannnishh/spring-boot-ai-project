@@ -21,17 +21,17 @@ public class ChunkingPipeline {
 
   private final ChunkingStrategy chunkingStrategy;
   private final ChunkRepository chunkRepository;
-  private final String hfApiKey;
+  private final String jinaApiKey;
   private final HttpClient http = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public ChunkingPipeline(
       ChunkRepository chunkRepository,
       ChunkingStrategy chunkingStrategy,
-      @Value("${HF_API_KEY}") String hfApiKey) {
+      @Value("${JINA_API_KEY}") String jinaApiKey) {
     this.chunkingStrategy = chunkingStrategy;
     this.chunkRepository = chunkRepository;
-    this.hfApiKey = hfApiKey;
+    this.jinaApiKey = jinaApiKey;
   }
 
   public void ingest(Long documentId, String text) {
@@ -60,33 +60,43 @@ public class ChunkingPipeline {
 
   // Hugging Face 384-dimensional embedding call
   public float[] embed(String text) throws Exception {
-    String url =
-        "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction";
+    String url = "https://api.jina.ai/v1/embeddings";
 
+    // Build the Jina AI request payload requesting 384 dimensions
+    java.util.Map<String, Object> payload =
+        java.util.Map.of(
+            "model",
+            "jina-embeddings-v3",
+            "task",
+            "text-matching",
+            "dimensions",
+            384,
+            "input",
+            java.util.List.of(text));
     HttpRequest request =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .header("Authorization", "Bearer " + hfApiKey)
+            .header("Authorization", "Bearer " + jinaApiKey)
             .header("Content-Type", "application/json")
-            .POST(
-                HttpRequest.BodyPublishers.ofString(
-                    "{\"inputs\":" + objectMapper.writeValueAsString(text) + "}"))
+            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
             .build();
 
     HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
 
     if (response.statusCode() != 200) {
       throw new IllegalStateException(
-          "Hugging Face embedding failed: HTTP " + response.statusCode() + " " + response.body());
+          "Jina embedding failed: HTTP " + response.statusCode() + " " + response.body());
     }
 
-    // Parse JSON into float[] (with fallback for nested arrays)
-    try {
-      return objectMapper.readValue(response.body(), float[].class);
-    } catch (Exception e) {
-      float[][] nested = objectMapper.readValue(response.body(), float[][].class);
-      return nested[0];
+    // Parse: {"data": [{"embedding": [...]}]}
+    tools.jackson.databind.JsonNode root = objectMapper.readTree(response.body());
+    tools.jackson.databind.JsonNode vectorNode = root.path("data").get(0).path("embedding");
+
+    float[] embedding = new float[vectorNode.size()];
+    for (int i = 0; i < vectorNode.size(); i++) {
+      embedding[i] = (float) vectorNode.get(i).asDouble();
     }
+    return embedding;
   }
 
   // Fallback called if all 3 attempts fail
