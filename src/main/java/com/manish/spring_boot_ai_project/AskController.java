@@ -1,24 +1,16 @@
 package com.manish.spring_boot_ai_project;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @RestController
 public class AskController {
@@ -44,19 +36,17 @@ public class AskController {
   private final ChatClient chatClient;
   private final ChunkRepository chunkRepository;
   private final DocumentRepository documentRepository;
-  private final String hfApiKey;
-  private final HttpClient http = HttpClient.newHttpClient();
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ChunkingPipeline chunkingPipeline;
 
   public AskController(
       ChatClient.Builder chatClientBuilder,
       ChunkRepository chunkRepository,
       DocumentRepository documentRepository,
-      @Value("${HF_API_KEY}") String hfApiKey) {
+      ChunkingPipeline chunkingPipeline) {
     this.chatClient = chatClientBuilder.build();
     this.documentRepository = documentRepository;
     this.chunkRepository = chunkRepository;
-    this.hfApiKey = hfApiKey;
+    this.chunkingPipeline = chunkingPipeline;
   }
 
   @Retryable(
@@ -64,9 +54,9 @@ public class AskController {
       maxAttempts = 3,
       backoff = @Backoff(delay = 1000, multiplier = 2.0))
   @PostMapping("/ask")
-  public AskResponse ask(@RequestBody AskRequest request) {
+  public AskResponse ask(@RequestBody AskRequest request) throws Exception {
     // Step 1: Embed the user's question (384 dimensions)
-    float[] queryEmbedding = embed(request.question());
+    float[] queryEmbedding = chunkingPipeline.embed(request.question());
 
     // Step 2: Retrieve Top-K nearest chunks from pgvector
     List<Chunk> nearest = chunkRepository.findNearest(toVectorLiteral(queryEmbedding), TOP_K);
@@ -124,45 +114,5 @@ public class AskController {
     }
 
     return sb.append("]").toString();
-  }
-
-  // Helper: Calls Hugging Face sentence-transformers/all-MiniLM-L6-v2
-  private float[] embed(String text) {
-    try {
-      String url =
-          "https://router.huggingface.co/hf-inference/models/"
-              + "sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction";
-
-      HttpRequest httpRequest =
-          HttpRequest.newBuilder()
-              .uri(URI.create(url))
-              .header("Authorization", "Bearer " + hfApiKey)
-              .header("Content-Type", "application/json")
-              .POST(
-                  HttpRequest.BodyPublishers.ofString(
-                      objectMapper.writeValueAsString(Map.of("inputs", text))))
-              .build();
-
-      HttpResponse<String> response = http.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != 200) {
-        throw new IllegalStateException(
-            "Embedding call failed: HTTP " + response.statusCode() + " " + response.body());
-      }
-      // Parse response array (handles both [0.1, 0.2] and [[0.1, 0.2]])
-      JsonNode root = objectMapper.readTree(response.body());
-      JsonNode vector =
-          root.isArray() && root.size() > 0 && root.get(0).isArray() ? root.get(0) : root;
-
-      float[] embedding = new float[vector.size()];
-      for (int i = 0; i < embedding.length; i++) {
-        embedding[i] = (float) vector.get(i).asDouble();
-      }
-      return embedding;
-    } catch (IllegalStateException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new IllegalStateException("Embedding call failed", e);
-    }
   }
 }
