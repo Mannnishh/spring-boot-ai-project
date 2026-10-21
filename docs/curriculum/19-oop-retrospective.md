@@ -371,7 +371,7 @@ curriculum you will find some mix of these:
 |---|---|
 | `ChunkingPipeline.embed(...)` | Embeds each chunk during ingestion (Day 8–10). In the curriculum this method is private; if you extracted `EmbeddingClient` on Day 15 it may delegate there instead. |
 | `AskController` | Embeds the question. In the curriculum this goes through `EmbeddingClient` (Day 15). In your own code it may call `chunkingPipeline.embed(request.question())` directly, which makes the controller depend on the *ingestion* class just to reach an embeddings call. That coupling is one of the things this refactor removes. |
-| `HelloAiController.helloEmbedding()` | The Day 4 scaffold still contains a complete, separate copy of the Hugging Face call, and its constructor requires `HF_API_KEY` at startup. If you moved to Jina and only edited `ChunkingPipeline`, this copy is still calling Hugging Face. |
+| `HelloAiController.helloEmbedding()` | The Day 4 scaffold still contains a complete, separate copy of the Hugging Face call, and its constructor requires `HF_API_KEY` at startup (unless you already made the key optional in [Day 18's carry-over fix 3](18-readme-demo-prep.md#carry-over-fixes-before-the-clean-clone-test), in which case it only requires it when someone calls the endpoint). If you moved to Jina and only edited `ChunkingPipeline`, this copy is still calling Hugging Face. If you deleted the controller on Day 18, there is no row to act on. |
 
 If the grep finds a call site that is not in this table, it goes behind the
 interface too. **The goal is that exactly two classes contain vendor URLs and
@@ -526,7 +526,11 @@ For every call site from step 1:
   `ChunkingPipeline` at all unless it uses it for something else.
 - `HelloAiController`: inject `EmbeddingProvider`, and make
   `/hello-embedding` return `embeddingProvider.embed("hello world")`. This
-  also removes its startup dependency on `HF_API_KEY`.
+  also removes its dependency on `HF_API_KEY`: at startup if you never
+  touched it, and the blank-key `503` branch from Day 18's carry-over fix 3
+  if you did (that branch goes away, since the factory now checks the
+  selected provider's key). If you deleted the controller on Day 18, skip
+  this bullet.
 - If you extracted `EmbeddingClient` on Day 15, it is now
   `HuggingFaceEmbeddingProvider`; delete the old class once nothing
   references it.
@@ -626,8 +630,10 @@ you call the refactor done:
   `/ask` returns when the AI service is down (now Day 15's `503` JSON error,
   not a `200` fallback message).
 - **`.env.example`** and the `app` service's `environment:` block in
-  `docker-compose.yml`: add `EMBEDDINGS_PROVIDER` and the Jina key (and keep
-  the Hugging Face key) so a fresh clone still boots. Day 18's widened grep,
+  `docker-compose.yml`: add `EMBEDDINGS_PROVIDER`. The Jina key should
+  already be there from [Day 18's carry-over fix 2](18-readme-demo-prep.md#carry-over-fixes-before-the-clean-clone-test);
+  if it is not, add it now. Keep the Hugging Face key, so a fresh clone still
+  boots with either provider selected. Day 18's widened grep,
   `grep -rhoE '\$\{[A-Z_]+(:[^}]*)?\}' src/main | sort -u`, lists every
   placeholder including the ones with defaults.
 - **The `/ask` OpenAPI annotations from Day 17.** The `@Operation` description
@@ -1238,7 +1244,9 @@ with a JSON `error` field, and that is what the checkpoint's optional retry
 check expects. Both are clean, typed failures; neither is a stack trace.)
 
 **`HelloAiController.java`** (the Day 4 scaffold, now with no vendor code; keep
-`@Hidden` on the class if you added it on Day 17)
+`@Hidden` on the class if you added it on Day 17). This replaces the version
+you ended Day 18 with, the one with `${HF_API_KEY:}` and the blank-key `503`;
+all of that goes. If you deleted the controller on Day 18, skip this block.
 
 ```java
 package com.example.demo;
