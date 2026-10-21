@@ -32,9 +32,11 @@ better Day 21 demo than a project with one extra feature.
 
 ### If you are behind: cut in this order
 
-Work down the list and stop as soon as you are caught up. The first three
-items are the days the schedule itself marks as cuttable; each one points
-back to the day so you can see exactly what you would be dropping.
+Work down the list and stop as soon as you are caught up. Day 16 is the
+only day the schedule marks optional. Days 17 and 18 come next because each
+has a built-in lighter path (Day 17's Swagger-only Option A; a shorter
+sample-question list on Day 18). Each item points back to its day so you
+can see exactly what you would be dropping.
 
 1. **Cut Day 16 (JWT) first.** The [schedule in the overview](00-overview.md#full-schedule)
    marks it "optional — cut first if behind", and [Day 16](16-jwt-security.md)
@@ -60,7 +62,7 @@ back to the day so you can see exactly what you would be dropping.
 
 ### If cutting those three is not enough
 
-These are not marked cuttable, so they are not on the list above, but they
+These have no lighter path, so they are not on the list above, but they
 are not equally important either, and you should know which is which:
 
 - **[Day 15](15-rate-limit-resilience.md) is marked core.** Do not cut it.
