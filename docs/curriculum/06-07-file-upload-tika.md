@@ -1,4 +1,4 @@
-# Day 6-7 — File Upload + Text Extraction (Apache Tika)
+# Day 6–7 — File Upload + Text Extraction (Apache Tika)
 
 **Focus:** Add the first real ingestion path to the app: an HTTP
 endpoint that accepts an uploaded file and extracts its plain text with

@@ -14,7 +14,7 @@ The real pipeline (embed → compare → retrieve → prompt) gets built on
 Days 8–10 and 11–14. Those days assume you already know *why* the
 pieces are shaped the way they are; today is where that why comes from.
 It's genuinely new material, so it's a worked example + variation, with
-the consolidated script in the answer key at the bottom.
+the complete script in the reference section at the bottom.
 
 ## Concept primer
 
@@ -187,7 +187,7 @@ Inference endpoint and model
 (`sentence-transformers/all-MiniLM-L6-v2`), the same
 `Authorization: Bearer` header, the same array-of-arrays response shape —
 see
-[Day 4, step 4](04-day4-groq-embeddings-hello-world.md) for the full
+[Day 4, step 4](04-day4-groq-embeddings-hello-world.md#4-the-hello-world-embeddings-call) for the full
 walkthrough. The only differences: the API key is read from the
 `HF_API_KEY` environment variable (`System.getenv`), and instead of
 Jackson (which Day 4 had because Spring Boot Web pulls it in), the
@@ -296,6 +296,13 @@ public class Main {
     }
 }
 ```
+
+A caution about the hand-rolled `jsonString` helper: it escapes only
+backslash, double quote, newline and carriage return. That is enough for
+the short sentences used today, but not for arbitrary document text (a
+tab character, for example, would produce invalid JSON), so don't carry
+it into the Spring project. [Day 8–10](08-10-chunking-embedding-pipeline.md#3-todo--the-pipeline-method)
+builds the request body with Jackson instead.
 
 The formula is the only part that matters and it's spelled out in the
 three running sums inside `cosineSimilarity`: **dot product** (`dot`),

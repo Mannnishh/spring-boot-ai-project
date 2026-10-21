@@ -1,4 +1,4 @@
-# Day 8-10 — Chunking + Embedding Pipeline → pgvector
+# Day 8–10 — Chunking + Embedding Pipeline → pgvector
 
 > **Before you start:** if your `pom.xml` is on Spring Boot 3.x or a Spring
 > AI 1.x version, do the [one-time upgrade](07b-upgrade-boot4-spring-ai2.md)
@@ -163,6 +163,9 @@ default limit. Real PDFs are often bigger:
 spring.servlet.multipart.max-file-size=10MB
 spring.servlet.multipart.max-request-size=10MB
 ```
+
+(In `application.yml` form, the same two settings nest as `max-file-size: 10MB`
+and `max-request-size: 10MB` under `spring:` / `servlet:` / `multipart:`.)
 
 **Carry-over checkpoint:** `./mvnw test` passes with no database running;
 uploading an empty file returns `400`; the overwrite `curl` from fix 3
@@ -436,7 +439,9 @@ public class Chunk {
     //                org.hibernate.annotations.Array,
     //                org.hibernate.type.SqlTypes
 
-    // TODO: no-arg constructor (JPA requires it) + getters/setters
+    // TODO: a protected no-arg constructor (JPA requires it), a public
+    //       constructor taking (documentId, content, embedding), and getters
+    //       (no setters needed)
 }
 ```
 
@@ -521,6 +526,13 @@ public class ChunkingPipeline {
     as `[[0.01, …]]`, and you may already have hit that. Parse with
     `readTree` and unwrap only if the first element is itself an array.
     The answer key shows both fixes.
+- **Which `ObjectMapper`?** The snippets in this curriculum import
+  `com.fasterxml.jackson.databind.ObjectMapper` (Jackson 2). Spring Boot 4's
+  own default is Jackson 3 (`tools.jackson.databind`), and your own code may
+  already use that one. Both work in the same project; the Jackson 2 imports
+  compile only because Jackson 2 is still on the classpath transitively (see
+  [the upgrade day](07b-upgrade-boot4-spring-ai2.md#3-leave-these-alone)).
+  Keep the package your project already uses.
 - **Check the status code before parsing.** A bad key, a model that's
   still loading, or a rate limit comes back as a JSON *error object*.
   Parsing that as numbers produces a confusing Jackson error that hides the
