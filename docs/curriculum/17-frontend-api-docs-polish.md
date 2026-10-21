@@ -84,15 +84,16 @@ Adding springdoc is one dependency, and Swagger UI will render fine. The
 trap shows up the moment you add a `@Schema` annotation to a record:
 `/v3/api-docs` starts returning HTTP 500 with a
 `java.lang.NoSuchMethodError: ... Schema.$dynamicRef()` in the log. The
-cause is classpath mediation, not your code. Maven resolves two copies of
-the same annotation classes at different versions: springdoc needs
-`swagger-annotations-jakarta` **2.2.55**, but Spring AI's chat client and
-the OpenAI Java SDK each drag in an *older* swagger annotations jar
-(2.2.38 and 2.2.31) that is **closer to your project in the dependency
-tree**, and Maven's rule is that
+cause is the classpath, not your code, and it is two separate problems.
+springdoc needs `swagger-annotations-jakarta` **2.2.55**, but Spring AI's
+chat client drags in an *older* copy of that same artifact (2.2.38) that is
+**closer to your project in the dependency tree**, and Maven's rule is that
 ["Maven picks the 'nearest definition'"](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html).
-The old `Schema` class wins, and springdoc calls a method that doesn't
-exist on it. This is a good example of a failure whose stack trace points
+Separately, the OpenAI Java SDK brings a *different* artifact,
+`swagger-annotations` 2.2.31 (no `jakarta`), which defines the same
+`io.swagger.v3.oas.annotations.*` classes: a duplicate on the classpath,
+not a version contest. Either way the old `Schema` class can win, and
+springdoc calls a method that doesn't exist on it. This is a good example of a failure whose stack trace points
 at a library you never touched. The fix (two small `pom.xml` changes) is
 in the exercise as a "find it yourself" step with hints, and in the Answer
 Key. Reading `mvn dependency:tree` output is the skill being practiced.
@@ -417,6 +418,8 @@ This is the polish the checkpoint asks for. On `AskController.ask`, add:
   "I don't have enough information to answer that." case your system
   prompt produces. Add `schema = @Schema(implementation = AskResponse.class)`
   to that `@Content` too (see the hint).
+- a **503 response** documenting Day 15's failure contract (the JSON
+  `error` body), if your `ask()` returns one.
 
 On `DocumentController.upload`, add an `@Operation`, a **201** response
 with a `Document` example, a **500** response (text extraction or
@@ -766,9 +769,14 @@ from A3 — fix the pom, don't change the annotations.
    (it should mention the $500 stipend) with `remote-work-policy.txt`
    listed as a source.
 4. **Errors are visible, not silent.** Create an empty file
-   (`: > empty.txt`) and upload it. Apache Tika refuses a zero-byte stream,
-   your controller returns `500`, and the status line should read
-   `Upload failed: HTTP 500` instead of doing nothing.
+   (`: > empty.txt`) and upload it. The status line should read
+   `Upload failed: HTTP 400` if you applied
+   [Day 8–10's carry-over fix 2](08-10-chunking-embedding-pipeline.md#carry-over-fixes-from-days-37)
+   (an empty upload answered with `400` before Tika runs), and
+   `Upload failed: HTTP 500` if you did not (Apache Tika throws
+   `ZeroByteFileException` on a zero-byte stream and the controller
+   returns `500`). Either way it must show an error instead of doing
+   nothing.
 
 *(With Day 16: sign in first; before signing in, step 1's `curl` still
 returns `200` once `/` is permitted, and the document list reads "Could not
@@ -798,10 +806,11 @@ Things you can say, and defend, because you did them today:
 - **A real dependency-conflict story.** "Adding springdoc worked until I
   put a `@Schema` on a record; then `/v3/api-docs` returned 500 with a
   `NoSuchMethodError` from a class I never imported. `mvn dependency:tree`
-  showed two older swagger annotation jars pulled in transitively by
-  Spring AI and the OpenAI SDK, winning Maven's nearest-definition
-  rule over springdoc's. I fixed it by importing springdoc's BOM to align
-  the managed version and excluding the duplicate-package jar." Most
+  showed an older `swagger-annotations-jakarta` pulled in by Spring AI,
+  winning Maven's nearest-definition rule over springdoc's, plus a
+  second, non-`jakarta` jar from the OpenAI SDK defining the same
+  classes. I fixed it by importing springdoc's BOM to align the managed
+  version and excluding the duplicate-package jar." Most
   candidates have a "dependency hell" story that's vague; yours has
   specific artifacts and a reason.
 - **(Option B) "Why no CORS config?"** Because the page is served from
@@ -938,8 +947,12 @@ public class OpenApiConfig {}
 ```
 
 **`AskController.java`** — add these imports and annotations; the method
-body is unchanged. (`@Retryable` and `@Recover` from Day 15 stay as they
-are.)
+body is unchanged. Your existing retry annotations (any `@Retryable` /
+`@Recover` you wrote on Day 15) stay exactly as they are: Day 19 replaces
+them, so do not touch them today. Curriculum Day 15's `ask()` has no
+controller-level retry at all and returns a `503` with a JSON `error`
+body when the AI service is unavailable; if your own code has a `200`
+fallback message instead, that is what yours will show.
 
 ```java
 import io.swagger.v3.oas.annotations.Operation;
@@ -954,16 +967,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class AskController {
   // ... fields and constructor unchanged ...
 
-  @Retryable(
-      retryFor = {Exception.class},
-      maxAttempts = 3,
-      backoff = @Backoff(delay = 1000, multiplier = 2.0))
+  // ... your existing Day 15 annotations (if any) stay here, unchanged ...
   @Operation(
       summary = "Ask a question about the uploaded documents",
       description =
           "Embeds the question, retrieves the nearest chunks from pgvector, and asks the LLM "
-              + "to answer using only that context. If the AI service is unavailable after "
-              + "the retries from Day 15, the endpoint's fallback applies instead.",
+              + "to answer using only that context. If the AI service is still unavailable "
+              + "after the retries from Day 15, the endpoint returns 503 with an error message.",
       requestBody =
           @io.swagger.v3.oas.annotations.parameters.RequestBody(
               content =
@@ -1003,11 +1013,23 @@ public class AskController {
                                 "citedDocuments": ["remote-work-policy.txt", "onboarding-checklist.pdf"]
                               }
                               """)
-                    }))
+                    })),
+        @ApiResponse(
+            responseCode = "503",
+            description = "The AI service is unavailable after retries",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    examples =
+                        @ExampleObject(
+                            value =
+                                """
+                                {"error": "The AI service is temporarily unavailable. Please try again shortly."}
+                                """)))
       })
   @PostMapping("/ask")
-  public AskResponse ask(@RequestBody AskRequest request) throws Exception {
-    // ... unchanged ...
+  public ResponseEntity<?> ask(@RequestBody AskRequest request) {
+    // ... unchanged ... (use your own signature; Day 15 widened the return type to ResponseEntity<?>)
   }
 }
 ```
@@ -1202,8 +1224,9 @@ This page was run against a live build of the app (served from the
 `static` folder, alongside springdoc): `GET /` returned `200 text/html`,
 and its script issued `GET /documents`, `POST /documents/upload`
 (multipart), `GET /documents` again, and `POST /ask` (JSON) in that order.
-If `/ask` shows your Day 15 fallback text ("The AI service is currently
-busy or unavailable...") instead of an answer, the page is fine: the call
+If `/ask` shows Day 15's failure response instead of an answer (the page
+prints a `503` as `Ask failed: HTTP 503`, or your own fallback text if your
+code returns one with a `200`), the page is fine: the call
 reached the controller and the upstream AI call failed, so check your
 API keys and the app log.
 
