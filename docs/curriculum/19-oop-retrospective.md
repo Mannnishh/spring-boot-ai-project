@@ -731,12 +731,20 @@ You're done with Day 19 when all four of these pass.
    accept all three of these: its startup log line from check 3, the
    `EMBEDDINGS_PROVIDER=nonsense` refusal from check 3, and a **stub run**
    showing the switch reaches the code path without the vendor. For the stub
-   run (keep the placeholder key), either point `embeddings.huggingface.url` (or `embeddings.jina.url`) at
-   a throwaway local fake server that returns a 384-number JSON array, or use
+   run (keep the placeholder key), either point the URL property of the
+   provider you are faking at a throwaway local fake server, or use
    Variation 3's `FakeEmbeddingProvider`, then confirm an upload and an `/ask`
    complete (the answers will be meaningless; this proves the plumbing, not the
    retrieval quality). Then run `./mvnw test`; the existing tests must still
    pass.
+
+   The fake server must answer in the shape the provider you point at it
+   parses. For `embeddings.huggingface.url` that is a bare JSON array of 384
+   numbers (or an array holding one such array), as Hugging Face returns. For
+   `embeddings.jina.url` it is Jina's object, `{"data":[{"embedding":[...]}]}`
+   with the 384 numbers inside `embedding`, because the Jina provider reads
+   `data[0].embedding` (see its answer-key class below). A bare array sent to
+   the Jina provider fails with the "unexpected response shape" error.
 
 **Optional, to see the proxy rule for yourself.** Temporarily point
 `embeddings.huggingface.url` at an invalid host (for example
