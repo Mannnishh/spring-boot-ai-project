@@ -80,7 +80,10 @@ Do not add features. Use the time on things that make Day 21 go better:
 
 - Run the [Day 18 clean-checkout test](18-readme-demo-prep.md#checkpoint)
   again from scratch, now that more has changed (Day 19's refactor), and
-  fix whatever it finds.
+  fix whatever it finds. Use plain `docker compose down` in your original
+  repository, as Day 18 says; the fresh clone gets its own database
+  volume, so there is no reason to wipe your working data a second time.
+  `down -v` belongs only inside `/tmp/readme-test` on a repeat run.
 - Re-read the [Day 18 demo-prep checklist](18-readme-demo-prep.md#3-demo-prep-checklist-walk-through-it-once)
   and tick every item.
 - Run `./mvnw test` and confirm the suite passes.
@@ -119,9 +122,10 @@ One preparation step is different from Day 18's advice. Day 18 says to
 upload the sample files *before* the meeting, because uploads embed every
 chunk and are the slowest, most quota-hungry call you have. For a demo
 that includes a live upload, pre-load five of the six files and **hold one
-back to upload live**. Pick the smallest one, `remote-work-policy.txt`
+back to upload live**. Pick a small one, `remote-work-policy.txt`
 (about 1 KB), so the live upload is a handful of chunks and takes seconds.
-Its natural question is the equipment stipend: the answer is `$500`, cited
+Its natural question is the equipment stipend, which is also the question
+you verified on Day 11–14 and Day 18: the answer is `$500`, cited
 to `remote-work-policy.txt`.
 
 To get back to that state between attempts, empty the tables and re-upload
@@ -246,7 +250,8 @@ make that self-checkable, the run counts only if all of these hold:
 - [ ] The timer, started before Part 1 and not paused, reads **15:00 or
   less** when you finish Part 3.
 - [ ] All three parts happened, in order: the architecture overview (with
-  at least the five patterns above named), the live demo, and three gotcha
+  the patterns above named; if you skipped the Day 19 refactor, describe
+  Factory and Adapter as the change you would make next), the live demo, and three gotcha
   answers.
 - [ ] During Part 2 you did **not** open this file, your README, the Day 18
   checklist or your own notes. The only things allowed on screen are the
