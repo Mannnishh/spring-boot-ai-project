@@ -42,7 +42,7 @@ Two different problems, one file:
    (`.idea/`, `.vscode/`) are regenerated locally and don't belong in
    history — committing them bloats diffs and creates merge conflicts over
    files nobody actually edited by hand.
-2. **Secrets.** `.env` files hold API keys (Groq, Gemini — see Day 4). A
+2. **Secrets.** `.env` files hold API keys (Groq, Hugging Face — see Day 4). A
    `.gitignore` entry for `.env` is the first, cheapest line of defense
    against ever pushing a real credential to a public GitHub repo. It's not
    a complete secrets story (Day 4 covers that properly), but it's the
