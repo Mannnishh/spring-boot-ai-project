@@ -310,6 +310,12 @@ without having written a single annotation. Also fetch the raw document:
 curl -s localhost:8080/v3/api-docs | head -c 400
 ```
 
+> **If you completed Day 16**, every Swagger path returns `401` right now,
+> in the browser and in this `curl`. Do step 1 of
+> [A6](#a6-if-you-completed-day-16-jwt) (permit the doc paths in
+> `SecurityConfig`) before continuing; A2–A5 depend on that page and
+> document loading. Come back to the rest of A6 afterwards.
+
 ### A2. TODO — confirm every endpoint is there
 
 Compare what Swagger UI lists against what you actually built. Write down
