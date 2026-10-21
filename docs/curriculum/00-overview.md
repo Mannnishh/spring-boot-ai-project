@@ -108,8 +108,8 @@ everything else here and beyond.
 | Day 11–14 | `/ask` endpoint: embed → similarity search → prompt build → Groq → cited answer, plus an iteration day for answer quality (chunk size, prompt tweaks, citation format). Java pattern note: Builder pattern for prompt construction. |
 | Day 15 | Rate-limit/retry resilience for free-tier APIs [core]. Java pattern note: Decorator pattern for the retry wrapper. |
 | Day 16 | Spring Security (JWT) [optional — cut first if behind]. |
-| Day 17 | Frontend or Swagger/Postman polish. |
-| Day 18 | README, sample-question cache, demo dataset prep. |
+| Day 17 | Carry-over fixes from the Day 8–15 review (delete leaves orphan chunks, empty upload returns 500, and one known issue that Day 19 repairs), then frontend or Swagger/Postman polish. |
+| Day 18 | Carry-over fixes that a clean clone would fail on (`mvnw` not executable, Jina key missing in Docker, Hugging Face key required at startup, no pgvector extension on a fresh database), then README, sample-question cache, demo dataset prep. |
 | Day 19 | Java/OOP + design-patterns retrospective: review where each pattern appeared across the build, then refactor one piece to intentionally apply patterns not yet used: put the embeddings provider behind an `EmbeddingProvider` interface (Dependency Inversion, Adapter, Factory Method) so Hugging Face and Jina AI can be swapped by configuration without touching the `/ask` endpoint. |
 | Day 20 | Buffer (absorb slippage from any prior day; a cut-order list if you are behind). |
 | Day 21 | Mock interview run-through of the live demo. |
