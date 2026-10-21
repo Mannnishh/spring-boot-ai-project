@@ -134,6 +134,10 @@ Two edits, both in the Groq section:
   model is set by `spring.ai.openai.chat.model` alone, which you already
   have.
 
+(These are written as `.properties` lines. If your project keeps the Groq
+config in `application.yml`, as Day 4 showed, make the same two edits there:
+`base-url` and `chat: options: model` sit under `spring: ai: openai:`.)
+
 ### 3. Leave these alone
 
 - **`docker-compose.yml`'s `pgvector/pgvector:pg17` image.** Later days
