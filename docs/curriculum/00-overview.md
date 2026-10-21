@@ -23,18 +23,28 @@ everything else here and beyond.
   vocabulary and concepts from scratch before you touch any AI-specific code.
 - **Docker:** installed and working. On Windows, use the WSL2 backend
   (Docker Desktop's WSL2 integration) — this is covered in detail on Day 3.
-- **API keys** (both free-tier, no credit card required):
-  - A **Groq** API key, for LLM calls — create one from the
+- **API keys:**
+  - A **Groq** API key, for LLM calls (Groq has a free plan; see its
+    [rate limits page](https://console.groq.com/docs/rate-limits)) —
+    create one from the
     [GroqCloud API Keys console](https://console.groq.com/keys) (sign up
     first if you don't have an account).
-  - A **Gemini** API key, for embeddings (Groq has no embeddings API) — see
-    Google's [Gemini API key guide](https://ai.google.dev/gemini-api/docs/api-key)
-    for how to create one in Google AI Studio. (Hugging Face's Inference API
-    is a viable alternative for embeddings if you'd rather use that provider;
-    Day 4 covers the swap.)
-- **IDE:** [IntelliJ IDEA Community Edition](https://www.jetbrains.com/idea/download/)
-  (free) is recommended, or VS Code with the Java and Spring extensions if
-  you already prefer that setup.
+  - A **Hugging Face** access token, for embeddings (Groq has no embeddings
+    API) — create one as described in Hugging Face's
+    [User access tokens](https://huggingface.co/docs/hub/security-tokens)
+    page; Day 4 says which permission the token needs. Check Hugging Face's
+    [Inference Providers pricing](https://huggingface.co/docs/inference-providers/pricing)
+    page before relying on it: at the time of writing it lists no included
+    monthly credits for free accounts. If Hugging Face's embeddings won't
+    work for you, Jina AI is the alternative that
+    [Day 19](19-oop-retrospective.md) switches between by configuration.
+- **IDE:** [IntelliJ IDEA](https://www.jetbrains.com/idea/download/) is
+  recommended. Since the 2025.3 "unified" release, JetBrains ships one
+  installer whose free tier (what used to be Community Edition) covers
+  everything in this curriculum; the paid Ultimate subscription is
+  optional (see [Day 1's IDE note](01-day1-git-and-style.md#ide-setup-note)).
+  VS Code with the Java and Spring extensions is a fine alternative if you
+  already prefer that setup.
 
 ## How to use this curriculum
 
@@ -43,11 +53,14 @@ everything else here and beyond.
   them in order; the material is dependency-ordered the same way the app
   actually gets built, so there's no benefit to skipping around.
 - **Each day follows the same structure:** a concept **primer**, **reference
-  links** to real official documentation for everything mentioned, a
-  **checkpoint** (a concrete, runnable command or test that proves the day's
-  work actually functions), the **exercise** itself, and an **interview
+  links** to real official documentation for everything mentioned, the
+  **exercise** itself, a **checkpoint** (a concrete, runnable command or test
+  that proves the day's work actually functions), and an **interview
   angle** — a short note connecting the day's work to something you could
-  raise in an interview.
+  raise in an interview. Day 20–21 is the exception: it is a buffer day and a
+  mock-interview rehearsal, so it has no primer or reference links and ends
+  with a single checkpoint; its Day 21 prep sends you back through the other
+  days' interview angles.
 - **Two exercise styles**, matched to how new the material is:
   - Genuinely new AI/RAG concepts get a **worked example + variation**: full
     working code is shown, then you make a targeted change (swap a
@@ -58,12 +71,21 @@ everything else here and beyond.
     write, and there's a trade-offs note plus an answer key.
 - **Guided-TODO days have a hidden answer key below the exercise.** Attempt
   the exercise yourself first — the answer key is there to check your work
-  and show a reasonable trade-off, not to be read before you try.
+  and show a reasonable trade-off, not to be read before you try. Worked-example
+  days (Days 2, 4, 5) end instead with the vocabulary or complete code for
+  reference, and Day 1 and Day 18 have no key because their output is your
+  own repository, tooling setup, or README.
+- **Config files.** Days 3, 4 and 15 show Spring configuration as
+  `application.yml`; the upgrade day, Day 8–10 and Day 18 show some settings
+  as `application.properties` lines. They are two spellings of the same
+  thing. Use whichever file your project actually has (and don't put the
+  same key in both), turning `a.b.c=value` into nested YAML or back as needed.
 - **Days that build on Day 2's Java/OOP material carry a short "Java pattern
   note"** tying that day's work back to the vocabulary from Day 2 (e.g.
   dependency injection as Inversion of Control, Strategy for pluggable
   chunking, Builder for prompt construction, Decorator for the retry
-  wrapper).
+  wrapper). Day 19 then reviews all of them and adds two more, Factory
+  Method and Adapter, together with the Dependency Inversion Principle.
 - **Every technical claim, tool, or API mentioned links to a real, official
   source**, verified at authoring time. If you ever find a link that's gone
   stale, that's worth a quick note back to whoever maintains this curriculum
@@ -74,10 +96,10 @@ everything else here and beyond.
 | Day | Focus |
 |---|---|
 | Day 1 | Git/branching/commit hygiene + code style tooling + IDE setup (AM). Spring Boot CRUD skeleton starts (PM). |
-| Day 2 | Advanced Java/OOP refresher (standalone, not yet wired into Spring). SOLID, interfaces vs. abstract classes, composition over inheritance, generics, streams/lambdas/Optional, exception-hierarchy design, preview of Strategy/Builder/Decorator patterns used later. |
+| Day 2 | Advanced Java/OOP refresher (standalone, not yet wired into Spring). SOLID, interfaces vs. abstract classes, composition over inheritance, generics, streams/lambdas/Optional, exception-hierarchy design, preview of Strategy/Builder/Decorator patterns used later, dependency injection as a concrete case of Inversion of Control. |
 | Day 3 | Finish CRUD skeleton + Docker Compose (Spring Boot + Postgres/pgvector). Checkpoint: `docker-compose up`, CRUD endpoints return 200s, first feature-branch PR merged. Java pattern note: dependency injection as Inversion of Control. |
-| Day 4 | Groq + Gemini/HF "hello world" connectivity, `.env` secrets hygiene. Checkpoint: curl returns a real completion + a real embedding vector. |
-| Day 5 | RAG fundamentals deep-dive (standalone scripts, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs. |
+| Day 4 | Groq + Hugging Face "hello world" connectivity, `.env` secrets hygiene. Checkpoint: curl returns a real completion + a real embedding vector. |
+| Day 5 | RAG fundamentals deep-dive (one standalone script, not yet wired into Spring). Embeddings/vector space, cosine similarity, chunking trade-offs. |
 | Day 6–7 | File upload + Tika text extraction. |
 | Before Day 8 | One-time upgrade to Spring Boot 4 + Spring AI 2 (only if your project was generated on older versions). |
 | Day 8–10 | Carry-over fixes from the Day 3–7 review, then chunking strategy + embedding pipeline → pgvector storage, run automatically on every upload. Java pattern note: Strategy pattern for pluggable chunking strategies. |
@@ -86,8 +108,8 @@ everything else here and beyond.
 | Day 16 | Spring Security (JWT) [optional — cut first if behind]. |
 | Day 17 | Frontend or Swagger/Postman polish. |
 | Day 18 | README, sample-question cache, demo dataset prep. |
-| Day 19 | Java/OOP + design-patterns retrospective: review where each pattern appeared across the build, then refactor one piece to intentionally apply a pattern not yet used (e.g. a Factory/Adapter so a second LLM or embeddings provider could be swapped in without touching the `/ask` endpoint). |
-| Day 20 | Buffer (absorb slippage from any prior day). |
+| Day 19 | Java/OOP + design-patterns retrospective: review where each pattern appeared across the build, then refactor one piece to intentionally apply patterns not yet used: put the embeddings provider behind an `EmbeddingProvider` interface (Dependency Inversion, Adapter, Factory Method) so Hugging Face and Jina AI can be swapped by configuration without touching the `/ask` endpoint. |
+| Day 20 | Buffer (absorb slippage from any prior day; a cut-order list if you are behind). |
 | Day 21 | Mock interview run-through of the live demo. |
 
 ## Day files
