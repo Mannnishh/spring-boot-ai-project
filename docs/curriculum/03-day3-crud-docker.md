@@ -360,10 +360,12 @@ volumes:
   This file is **already gitignored** from Day 1 — that's the whole
   point of the `.env` entry in your `.gitignore`.
 
-*Unverified-image note: the `Dockerfile`'s JDK base image
-(`eclipse-temurin:17-jdk`) is not one of today's verified links — treat
-it as a starting point and confirm the current tag on Docker Hub if
-it's moved on since this was written. A minimal version:*
+*Base-image note: `eclipse-temurin:17-jdk` is a real, maintained tag
+(Java 17 matches the `javaVersion=17` you gave Spring Initializr on
+Day 1). It is listed in the
+[Eclipse Temurin official image](https://hub.docker.com/_/eclipse-temurin)
+definition that Docker Hub publishes from, [`docker-library/official-images`](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin).
+A minimal version:*
 
 ```dockerfile
 FROM eclipse-temurin:17-jdk

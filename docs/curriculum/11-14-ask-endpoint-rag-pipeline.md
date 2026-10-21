@@ -1,4 +1,4 @@
-# Day 11-14 — /ask Endpoint (RAG Pipeline) + Iteration
+# Day 11–14 — /ask Endpoint (RAG Pipeline) + Iteration
 
 **Focus:** Wire the full RAG loop end-to-end behind one endpoint: embed the
 question with Day 4's Hugging Face call, retrieve the nearest chunks with
@@ -121,7 +121,7 @@ prompt has several ordered, sometimes-optional parts (a system
 instruction, zero-or-more retrieved chunks, the question) that are easier
 to reason about assembled one step at a time than as one inline
 concatenation buried inside the endpoint method. It's the same shape as
-the JDK's own [`Locale.Builder`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Locale.Builder.html)
+the JDK's own [`Locale.Builder`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Locale.Builder.html)
 — chainable setters, terminal `build()` — just building a `String` instead
 of a `Locale`.
 
