@@ -522,9 +522,13 @@ tell you to do, you have found a bug in the README.
 made in `/tmp/readme-test` is lost, and one made uncommitted in the
 original is invisible to the clone). Commit it on the same branch, then
 bring the clone up to date with `git -C /tmp/readme-test pull`, or throw
-it away and repeat from step 0: `rm -rf /tmp/readme-test` first, because
+it away and repeat from step 0. Before you delete it, run
+`docker compose down -v` inside `/tmp/readme-test`, then
+`rm -rf /tmp/readme-test`: a fresh clone at the same path is the same
+Compose project, so it would reuse the old `readme-test_pgdata` volume, and
+a re-run could pass on stale state. (The `rm -rf` is needed because
 `git clone` refuses to write into a directory that already exists and is
-not empty.
+not empty.)
 
 You pass when this works in the clean checkout, using only README steps:
 

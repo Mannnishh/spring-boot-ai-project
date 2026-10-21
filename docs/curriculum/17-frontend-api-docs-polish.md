@@ -243,7 +243,8 @@ normal thing to say about an API.
   [Day 6–7 — `/documents/upload`](06-07-file-upload-tika.md) — the two
   endpoints annotated or called today.
 - [Day 15 — Rate-limit resilience](15-rate-limit-resilience.md) — the
-  fallback behavior the `/ask` description mentions.
+  `503` JSON `error` failure contract that the `/ask` description and its
+  `503` response example state.
 - [Day 16 — JWT security](16-jwt-security.md) — the optional day the two
   "If you completed Day 16" subsections build on.
 - [Sample data](sample-data/README.md) — the files to upload for the
