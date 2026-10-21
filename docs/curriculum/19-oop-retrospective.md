@@ -99,6 +99,25 @@ class that implements `EmbeddingProvider` *and holds another
 `EmbeddingProvider` it delegates to* is a decorator; the two provider
 classes hold no such reference, so they are strategy implementations.
 
+**The SOLID principle underneath.** The same refactor is the **Dependency
+Inversion Principle** from [Day 2, section 1](02-day2-java-oop-refresher.md#1-solid),
+which Day 2 said would come back today: "depend in the direction of
+abstraction." `ChunkingPipeline` and `AskController` are the high-level
+modules. Until today they depended on a concrete class that speaks one
+vendor's HTTP API (Day 15's `EmbeddingClient`, or the `embed()` method inside
+`ChunkingPipeline` in some projects). After today they depend only on the
+`EmbeddingProvider` interface, and the vendor classes implement that same
+interface, so the dependency arrow now points at the abstraction from both
+sides. Open/Closed follows from it: a third provider is a new class, not an
+edit to the callers.
+
+*A naming note, because Day 2's example used a different name:* Day 2's DIP
+paragraph describes "an embeddings interface" in general terms, and Day 15's
+`EmbeddingClient` turned out to be a concrete class, not an interface. Today
+the lineage is: `EmbeddingClient` (Day 15, concrete) keeps its body, is
+renamed `HuggingFaceEmbeddingProvider`, and gains the new interface
+`EmbeddingProvider` above it.
+
 **Java pattern note:** today is the first time you apply a pattern
 *proactively*, before a requirement forces it. Days 8–15 each introduced a
 pattern at the moment the code needed it. Here the trigger is a change you
@@ -263,7 +282,8 @@ Reference for the annotation itself: the
 
 **Internal (the four patterns being reviewed)**
 
-- [Day 2 — Java/OOP refresher](02-day2-java-oop-refresher.md): section 6
+- [Day 2 — Java/OOP refresher](02-day2-java-oop-refresher.md): section 1
+  (SOLID, including the Dependency Inversion Principle), section 6
   (Strategy, Builder, Decorator definitions), section 7 (DI/IoC).
 - [Day 3 — CRUD & Docker](03-day3-crud-docker.md#java-pattern-note): DI/IoC.
 - [Day 8–10 — Chunking & embedding pipeline](08-10-chunking-embedding-pipeline.md#java-pattern-note): Strategy.
@@ -474,11 +494,13 @@ message).
   message in the branch that needs a blank key.
 - Make the default provider (`embeddings.provider` unset) whichever one you
   consider the project's default; the answer key picks `huggingface`.
-  Expose the choice in `application.properties` as
-  `embeddings.provider=${EMBEDDINGS_PROVIDER:huggingface}`. That form works
-  with a real environment variable *and* with your `.env` file (your
-  `spring.config.import` line reads `.env` as a properties file, so a plain
-  `${...}` placeholder is the reliable way to reference it).
+  Expose the choice in your Spring config file as
+  `embeddings.provider=${EMBEDDINGS_PROVIDER:huggingface}` (in
+  `application.properties`) or the nested `embeddings:` / `provider:` form of
+  the same line (in `application.yml`; both are shown in the answer key). That
+  placeholder works with a real environment variable *and* with your `.env`
+  file (your `spring.config.import` line reads `.env` as a properties file, so
+  a plain `${...}` placeholder is the reliable way to reference it).
 - Log one line at startup naming the chosen provider (`modelId()`), so the
   checkpoint can show which one was wired.
 - Optional but useful: let the two URLs be overridden by properties
@@ -634,7 +656,7 @@ You're done with Day 19 when all four of these pass.
    `ChunkingPipeline.java:63:    String url = "https://api.jina.ai/v1/embeddings";` and
    `HelloAiController.java:37:        "https://router.huggingface.co/hf-inference/models/"`),
    which is a handy before/after. (The `HF_API_KEY` / `JINA_API_KEY` names
-   legitimately appear in `EmbeddingProviderConfig` and `application.properties`,
+   legitimately appear in `EmbeddingProviderConfig` and your Spring config file,
    which is why this grep looks at URLs instead.) If `HelloAiController`
    shows up here, step 6 is not finished.
 
@@ -1038,10 +1060,19 @@ public class EmbeddingProviderConfig {
 }
 ```
 
-**`application.properties`** (add one line; `EMBEDDINGS_PROVIDER` can then come
-from the environment or from `.env`)
+**Config file** (add one setting; `EMBEDDINGS_PROVIDER` can then come from the
+environment or from `.env`). Days 3, 4 and 15 showed `application.yml`; the
+upgrade day and Day 8–10 show `application.properties` lines. Use whichever
+file your project actually has, and do not put the same key in both:
+
+```yaml
+# application.yml
+embeddings:
+  provider: ${EMBEDDINGS_PROVIDER:huggingface}
+```
 
 ```properties
+# application.properties (the same setting)
 embeddings.provider=${EMBEDDINGS_PROVIDER:huggingface}
 ```
 
