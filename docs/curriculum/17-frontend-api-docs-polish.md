@@ -1143,7 +1143,11 @@ body is unchanged. Your existing retry annotations (any `@Retryable` /
 them, so do not touch them today. Curriculum Day 15's `ask()` has no
 controller-level retry at all and returns a `503` with a JSON `error`
 body when the AI service is unavailable; if your own code has a `200`
-fallback message instead, that is what yours will show.
+fallback message instead, that is what yours will show. In that case,
+until Day 19 step 8 updates these annotations, leave out the `503`
+`@ApiResponse` below and the last sentence of the `@Operation` description
+(the one about `503`), so the page does not promise a status your app
+doesn't return yet.
 
 ```java
 import io.swagger.v3.oas.annotations.Operation;

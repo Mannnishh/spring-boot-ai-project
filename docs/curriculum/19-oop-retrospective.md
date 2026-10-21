@@ -632,8 +632,9 @@ you call the refactor done:
 - **`.env.example`** and the `app` service's `environment:` block in
   `docker-compose.yml`: add `EMBEDDINGS_PROVIDER`. The Jina key should
   already be there from [Day 18's carry-over fix 2](18-readme-demo-prep.md#carry-over-fixes-before-the-clean-clone-test);
-  if it is not, add it now. Keep the Hugging Face key, so a fresh clone still
-  boots with either provider selected. Day 18's widened grep,
+  if it is not, add it now. Keep the Hugging Face key (or add it back, if you took
+  Day 18's option 2 and removed it), so a fresh clone still boots with either
+  provider selected. Day 18's widened grep,
   `grep -rhoE '\$\{[A-Z_]+(:[^}]*)?\}' src/main | sort -u`, lists every
   placeholder including the ones with defaults.
 - **The `/ask` OpenAPI annotations from Day 17.** The `@Operation` description
@@ -1246,7 +1247,8 @@ check expects. Both are clean, typed failures; neither is a stack trace.)
 **`HelloAiController.java`** (the Day 4 scaffold, now with no vendor code; keep
 `@Hidden` on the class if you added it on Day 17). This replaces the version
 you ended Day 18 with, the one with `${HF_API_KEY:}` and the blank-key `503`;
-all of that goes. If you deleted the controller on Day 18, skip this block.
+all of that goes (use your own package name, not `com.example.demo`). If you
+deleted the controller on Day 18, skip this block.
 
 ```java
 package com.example.demo;
