@@ -203,7 +203,8 @@ Hints, section by section:
   the curriculum here (for example, a different embeddings provider than
   Hugging Face), so find the list in your code rather than recalling it.
   This one-liner prints every `${VARIABLE}` placeholder the application
-  resolves, from `application.properties` and from `@Value` annotations:
+  resolves, from your Spring config file (`application.properties` or
+  `application.yml`) and from `@Value` annotations:
 
   ```bash
   grep -rhoE '\$\{[A-Z_]+\}' src/main | sort -u
@@ -421,7 +422,7 @@ sort of thing that goes wrong on the day.
 
 - [ ] **Raise the upload size limit (carry-over from Day 8–10).** Day 8–10
   taught this as optional (fix 5) and it is probably not in your
-  `application.properties`. Spring Boot's default for
+  Spring config file. Spring Boot's default for
   `spring.servlet.multipart.max-file-size` is **1MB**, and for
   `spring.servlet.multipart.max-request-size` it is **10MB** (see the
   Common Application Properties and `MultipartProperties` links above).
@@ -429,7 +430,9 @@ sort of thing that goes wrong on the day.
   bigger than 1MB. Against this project, a 2MB upload with the defaults
   returns `413`. Add the two lines from Day 8–10 fix 5
   (`spring.servlet.multipart.max-file-size=10MB` and
-  `spring.servlet.multipart.max-request-size=10MB`), restart, and
+  `spring.servlet.multipart.max-request-size=10MB`; in `application.yml`
+  form that is `max-file-size: 10MB` and `max-request-size: 10MB` nested under
+  `spring:` / `servlet:` / `multipart:`), restart, and
   re-try a >1MB file. Then remember the other side: a bigger PDF means
   more chunks, and each chunk is a separate embeddings call inside the
   upload request, so a large file can be slow or hit the free-tier limit.
