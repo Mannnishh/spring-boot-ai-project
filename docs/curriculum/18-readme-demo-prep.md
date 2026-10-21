@@ -42,9 +42,11 @@ cause. Two things in this stack make that risk real:
   and limits apply at the organization level and vary by plan. Your
   `/ask` call hits the model API on every request; uploading a document
   hits your embeddings API *once per chunk* (your `ChunkingPipeline`
-  embeds each chunk in its own call, inside the upload request). A large
-  corpus uploaded just before the demo, or a rapid string of questions,
-  is exactly how you meet the limit with someone watching.
+  embeds each chunk in its own call, inside the upload request). Every
+  `/ask` also makes one embeddings call, for the question itself, before
+  the model call. A large corpus uploaded just before the demo, or a rapid
+  string of questions, is exactly how you meet the limit with someone
+  watching.
 - **A big or unfamiliar corpus makes answers harder to verify.** With the
   six synthetic Acme Robotics documents in `docs/curriculum/sample-data/`
   you know the right answer to every question before you ask it, because
@@ -104,8 +106,9 @@ terminal and nothing else. Today's checkpoint is exactly that test.
   service"; `--build` rebuilds images first, `-d` runs detached.
 - [`docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/)
   — "Stop and remove containers, networks"; `-v` also removes the named
-  volumes declared in the Compose file. You need `-v` for a *truly* clean
-  test, because your database lives in a named volume.
+  volumes declared in the Compose file. Your database lives in a named
+  volume, so `-v` is what makes a *repeat* test inside the clone truly
+  clean (see the checkpoint).
 - [curl manual](https://curl.se/docs/manpage.html) — `-F` posts
   `multipart/form-data`, and `@filename` attaches a file as an upload
   (used for `/documents/upload`); `-d` sends the request body and `-H`
@@ -207,8 +210,14 @@ Hints, section by section:
   `application.yml`) and from `@Value` annotations:
 
   ```bash
-  grep -rhoE '\$\{[A-Z_]+\}' src/main | sort -u
+  grep -rhoE '\$\{[A-Z_]+(:[^}]*)?\}' src/main | sort -u
   ```
+
+  The `(:[^}]*)?` part matches placeholders that carry a default, such as
+  `${EMBEDDINGS_PROVIDER:huggingface}` or `${HF_API_KEY:}`, as well as
+  plain `${NAME}` ones. A placeholder with a default will not stop the app
+  booting without it, but it is still a name a reader may need to set, so
+  decide for each whether it belongs in `.env.example`.
 
   Compare that list three ways: against the names in `.env.example`,
   against the `environment:` block of the `app` service in
@@ -236,13 +245,20 @@ Hints, section by section:
     docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS vector;"'
     docker compose restart app
     ```
+
+    If the image build fails at the `./mvnw` step with `permission
+    denied`, the file's executable bit was never committed (Git records
+    it, and a file created without it is stored as mode 100644). Fix it
+    with `git update-index --chmod=+x mvnw` and commit the change, or
+    change the Dockerfile line to `RUN sh mvnw ...`. A fresh clone will
+    hit the same error, so it is a README-test bug worth finding.
   - *Automate it (preferred; one fewer step to document).* Put the one
     SQL line in a file such as `docker/initdb/01-vector.sql` and mount
     that directory into the `db` service at
     `/docker-entrypoint-initdb.d` (see the Postgres image link above).
     The catch, from the same source: init scripts run only when the data
-    directory is empty, so you must test it with `docker compose down -v`
-    first, or the old volume skips them.
+    directory is empty, so you must test it on an empty volume (the
+    clean-clone test below gives you one), or the old volume skips them.
 - **Upload the sample documents.** The upload endpoint takes a multipart
   form field named `file` at `/documents/upload`. A loop over all six
   files saves typing and shows the status code per file:
@@ -268,8 +284,9 @@ Hints, section by section:
 - **Sample questions.** A pointer to `sample-qa.md` (exercise 2).
 - **Known limitations.** Be honest and specific. At minimum: the scanned
   vendor contract cannot be read (no OCR; Day 6–7), the free-tier rate
-  limits (and that `/ask` returns a "busy or unavailable" message after
-  retries are exhausted; Day 15), and the upload size limit (see the
+  limits (and what `/ask` returns after retries are exhausted: Day 15's
+  failure response, a `503` JSON error, or your own fallback text if
+  your code differs; Day 15), and the upload size limit (see the
   checklist below). A short, accurate limitations section reads as
   engineering judgment, not as weakness.
 - **Tech stack.** One line: Spring Boot 4.1.1, Spring AI 2.0.1, Java 17,
@@ -380,8 +397,8 @@ every document that was *retrieved*, not only the ones the model used,
 so extra files in the list are normal; a **missing** expected file is the
 signal. If a question comes back wrong or generic, work the Day 11–14
 "Iteration" checklist (look at what was retrieved first) before touching
-the prompt. If you get the "busy or unavailable" message, wait a minute
-and retry; that is the throttling this whole day is about, and a good
+the prompt. If you get Day 15's failure response (a `503` JSON error, or your
+own fallback text), wait a minute and retry; that is the throttling this whole day is about, and a good
 reason to space your runs out.
 
 Save the results to **`sample-qa.md`** at the repository root, in this
@@ -485,8 +502,9 @@ git add README.md sample-qa.md   # plus any compose/.env.example/init-script fix
 git commit -m "docs: add README and sample Q&A"
 pwd   # note this path; it is <path-to-your-repo> below
 
-# 0. Stop and wipe the current stack, including the database volume.
-docker compose down -v
+# 0. Stop the current stack to free ports 8080 and 5432. Plain `down`
+#    keeps your database volume (and your uploaded documents) intact.
+docker compose down
 
 # 1. Fresh clone of that branch, from the local path, into a throwaway directory.
 git clone --branch docs/readme-and-demo-prep <path-to-your-repo> /tmp/readme-test
@@ -530,11 +548,15 @@ Also confirm, in the same session:
    clone proved it, since it had nothing else), and nothing real is in
    `.env.example`.
 
-Step 0 matters for two reasons: it frees ports 8080 and 5432 from your
-working stack, and `-v` discards its database volume. After you fix the
-README and want to repeat the test inside `/tmp/readme-test`, run
-`docker compose down -v` *there* first. Without `-v` the old database
-volume survives, the `vector` extension (and the `chunk` table) is
+Step 0 frees ports 8080 and 5432 from your working stack. It does not
+need `-v`: Compose names volumes after the project directory, so the clone
+in `/tmp/readme-test` gets its own, empty volume (`readme-test_pgdata`,
+or whatever your volume is called) and the test is already clean. Running
+`down -v` in your original repository would only destroy the documents,
+embeddings (which cost API quota to rebuild) and the hand-created `vector`
+extension from your working database. After you fix the README and want
+to repeat the test inside `/tmp/readme-test`, run `docker compose down -v`
+*there* first. Without `-v` the clone's old database volume survives, the `vector` extension (and the `chunk` table) is
 already in it, and the test passes even though a stranger's would not.
 
 ## Interview angle
