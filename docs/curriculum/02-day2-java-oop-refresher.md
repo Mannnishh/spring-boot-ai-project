@@ -82,9 +82,12 @@ abstraction. High level modules should not depend upon low level
 details."*
 
 > **In this project:** your `/ask` handler should depend on an
-> `EmbeddingClient` interface, not on a concrete
-> `GeminiEmbeddingClient`. Then swapping Gemini for Hugging Face is a
-> new class plus one line of wiring, not a rewrite of the endpoint.
+> embeddings *interface*, not on one vendor's concrete class (say, a
+> class that calls Hugging Face directly). Then swapping one embeddings
+> vendor for another is a new class plus one line of wiring, not a
+> rewrite of the endpoint. (You will build exactly this on Day 19, where
+> the interface is called `EmbeddingProvider`; until then the code calls
+> the vendor through a concrete class, which is the "before" picture.)
 > DIP is the principle; **dependency injection** (section 7) is the
 > mechanism that makes it practical.
 
@@ -219,7 +222,7 @@ only one abstract method." `Predicate<T>` in the example above is one;
 so are `Function`, `Supplier`, and `Comparator`.
 
 **Streams.** The
-[`java.util.stream` package](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/package-summary.html)
+[`java.util.stream` package](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/stream/package-summary.html)
 documentation is precise about what a stream is and isn't: "A stream is
 not a data structure that stores elements; instead, it conveys elements
 from a source such as a data structure, an array, a generator function,
@@ -269,7 +272,7 @@ the second replaces the first, they can't coexist in one class.)
 
 Read the pipeline top to bottom and it states *what* happens; the loop
 states *how*. Two mechanical notes:
-[`Stream.toList()`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html)
+[`Stream.toList()`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/stream/Stream.html)
 was added in Java 16 and "the returned List is unmodifiable" — if you
 need a mutable list, or you're on Java 8–15, use
 `.collect(Collectors.toList())` instead. And order matters: trimming
@@ -278,7 +281,7 @@ the stages in the same order the loop had them if you want identical
 output.
 
 **`Optional`.**
-[`java.util.Optional`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html)
+[`java.util.Optional`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Optional.html)
 is "a container object which may or may not contain a non-`null`
 value." Its own API note is the whole design rationale: "`Optional` is
 primarily intended for use as a method return type where there is a
@@ -422,7 +425,7 @@ so that — in the Gang of Four's phrasing —
 The client holds a reference to the interface and calls it; which
 concrete algorithm it got is selected elsewhere, often at runtime. You
 have already used this without naming it: a
-[`Comparator`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html)
+[`Comparator`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Comparator.html)
 passed to `Collections.sort` is a sorting strategy — "Comparators can
 be passed to a sort method... to allow precise control over the sort
 order."
@@ -436,7 +439,7 @@ representations — letting you
 instead of through one constructor with a dozen positional arguments.
 In Java this usually shows up as a fluent builder with a terminal
 `build()` call; the JDK's own
-[`Locale.Builder`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Locale.Builder.html)
+[`Locale.Builder`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Locale.Builder.html)
 is a textbook example ("`Builder` is used to build instances of
 `Locale` from values configured by the setters"), and it also shows the
 second payoff: unlike a raw constructor, the builder can validate as it
@@ -452,8 +455,8 @@ Gang of Four's framing is that it
 [provides a flexible alternative to subclassing for extending functionality](https://en.wikipedia.org/wiki/Decorator_pattern)
 — behavior added per-object at runtime, not per-class at compile time.
 Java's I/O library is the canonical example:
-[`FilterInputStream`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/FilterInputStream.html)
-"wraps some other input stream, which it uses as its basic source of
+[`FilterInputStream`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/FilterInputStream.html)
+"contains some other input stream, which it uses as its basic source of
 data, possibly transforming the data along the way or providing
 additional functionality."
 *→ Day 15: a retry/rate-limit wrapper around the LLM client.*
@@ -559,13 +562,13 @@ recognition this day is setting up.
   type-parameter syntax and a worked `compare` example.
 - [Lambda Expressions](https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html) —
   lambdas and functional interfaces.
-- [`java.util.stream` package summary](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/package-summary.html) —
+- [`java.util.stream` package summary](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/stream/package-summary.html) —
   what a stream is, and intermediate (lazy) vs. terminal (eager)
   operations.
-- [`Stream`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html) —
+- [`Stream`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/stream/Stream.html) —
   `filter`, `map`, and `toList` (Java 16+, returns an unmodifiable
   list).
-- [`Optional`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html) —
+- [`Optional`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Optional.html) —
   `of`, `ofNullable`, `empty`, `map`, `orElse`, `orElseThrow`, and the
   API note on using it as a return type.
 - [The Catch or Specify Requirement](https://docs.oracle.com/javase/tutorial/essential/exceptions/catchOrDeclare.html) —
@@ -591,11 +594,11 @@ recognition this day is setting up.
   [Decorator pattern (Wikipedia)](https://en.wikipedia.org/wiki/Decorator_pattern) —
   wrapping an object to add behavior; a flexible alternative to
   subclassing.
-- [`Comparator`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html) —
+- [`Comparator`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Comparator.html) —
   Strategy in the JDK.
-- [`Locale.Builder`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Locale.Builder.html) —
+- [`Locale.Builder`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Locale.Builder.html) —
   Builder in the JDK.
-- [`FilterInputStream`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/FilterInputStream.html) —
+- [`FilterInputStream`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/FilterInputStream.html) —
   Decorator in the JDK.
 - [Composition over inheritance](https://en.wikipedia.org/wiki/Composition_over_inheritance) —
   the general preference all three of these patterns rest on.
@@ -858,7 +861,7 @@ to read), `sorted`, `map`, and `toList`.
 *The one piece worth a hint*, because it's the only part you can't get
 to from section 4: `sorted` takes a `Comparator`, and you don't have to
 write one by hand —
-[`Comparator.comparingInt`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Comparator.html)
+[`Comparator.comparingInt`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Comparator.html)
 builds one from a key extractor, and every `Comparator` has a
 `reversed()`. That's the same `Comparator` interface from the Strategy
 preview in section 6: you're selecting a sorting algorithm's ordering
@@ -992,7 +995,7 @@ names.
 | Dependency Injection (DI) | A specialized form of IoC; collaborators supplied from outside, preferably via constructor | Day 3 |
 | Composition root | The single place that knows the concrete implementations and wires them (your `main`; Spring's container) | Day 3 |
 | Open/Closed Principle | Extend behavior by adding new code, without modifying existing code | Days 8–10, 15 |
-| Dependency Inversion Principle | Depend on abstractions, not concrete details | Day 3, Day 19 |
+| Dependency Inversion Principle | Depend on abstractions, not concrete details | Day 19 (Day 3's DI is its mechanism) |
 | Strategy | A family of interchangeable algorithms behind one interface; the algorithm varies independently of its clients | Days 8–10 |
 | Builder | Separates step-by-step construction of a complex object from its representation | Days 11–14 |
 | Decorator | Wraps an object in another object implementing the same interface, adding behavior around it | Day 15 |
