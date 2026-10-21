@@ -7,7 +7,7 @@ in your own code, and (2) apply one more pattern for the first time:
 putting your embeddings provider behind an `EmbeddingProvider` interface,
 so that switching between Hugging Face and Jina AI is a configuration
 change instead of a code edit. No new product features. The `/ask`
-endpoint's behavior must be identical when you are done.
+endpoint must behave exactly as it did at the end of Day 15 when you are done.
 
 **Pacing (about 6 hours):**
 
@@ -40,7 +40,7 @@ the Day 2 vocabulary, unchanged:
 
 ### Two patterns that are new today: Factory Method and Adapter
 
-Both come from the same book as the other four: *Design Patterns* by
+Both come from the same book as Strategy, Builder and Decorator: *Design Patterns* by
 Gamma, Helm, Johnson, and Vlissides (the "Gang of Four"; the
 [publisher's page](https://www.informit.com/store/design-patterns-elements-of-reusable-object-oriented-9780201633610)).
 
@@ -505,14 +505,22 @@ For every call site from step 1:
   `HuggingFaceEmbeddingProvider`; delete the old class once nothing
   references it.
 - If `AskController.ask(...)` itself carries a `@Retryable`/`@Recover` pair
-  (a shape from trying Day 15 on your own), take it off now that the provider
-  owns the retry. Checked on a copy of such a controller: the controller-level
-  annotation retries *every* exception, including a provider `400` that
-  Day 15 says must not be retried, so one bad request hit the provider
-  three times and then came back as a `200` carrying the fallback text; and
-  with a provider that is genuinely down, its five attempts get multiplied
-  by the controller's three. Day 15's interview angle makes the same point
-  about stacked retry loops.
+  (likely, if you tried Day 15 on your own: that pair may be the controller's
+  *only* failure handling), do not just delete it. Replace it with Day 15's
+  error handling,
+  [step 3](15-rate-limit-resilience.md#3-todo--wire-askcontroller-to-fail-clean-not-raw):
+  widen the return type to `ResponseEntity<?>`, wrap the body of `ask(...)` in
+  a `try`, and `catch (OpenAIException | TransientEmbeddingException |
+  NonTransientEmbeddingException e)` into a `503` with a small JSON body. If
+  you only delete the pair, any provider or Groq failure turns into a raw
+  `500`, which breaks the rule that `/ask` behaves as Day 15 left it. Why the
+  pair has to go at all: checked on a copy of such a controller, the
+  controller-level annotation retries *every* exception, including a provider
+  `400` that Day 15 says must not be retried, so one bad request hit the
+  provider three times and then came back as a `200` carrying the fallback
+  text; and with a provider that is genuinely down, its five attempts get
+  multiplied by the controller's three. Day 15's interview angle makes the
+  same point about stacked retry loops.
 
 *About `@Retryable` and `@Recover`:* the answer key uses Day 15's annotation
 (`org.springframework.resilience.annotation.Retryable`, enabled by
@@ -521,9 +529,24 @@ For every call site from step 1:
 `@Recover` method (the Day 15 primer explains why Spring Retry is archived
 and what replaced it). For this refactor the proxy rule is identical in both:
 the annotation goes on `embed(...)` of the provider *bean*. Keep whichever
-one you have working, with one difference to remember: Spring Retry's
-`@Recover` method must live in the same class as the `@Retryable` method, so
-if you keep it, a copy goes into each provider that carries the annotation.
+one you have working, with one difference to remember: **do not carry a
+`@Recover` method over into the providers.** A Spring Retry `@Recover` method
+must live in the same class as its `@Retryable` method, so keeping it would
+mean a copy in each provider, and a recoverer like the usual
+`recoverEmbed(Exception e, String text)` that logs and throws a plain
+`RuntimeException` does harm here: it replaces
+`TransientEmbeddingException` / `NonTransientEmbeddingException` with an
+untyped exception that the controller's `catch` from step 6 does not match
+(so the caller gets a `500` instead of a `503`), and because it accepts any
+`Exception` it also takes over the non-retryable `400`-style failures. Delete
+the recoverer. You do not need one: when a Spring Retry method has no
+recoverer, `RetryTemplate` throws the last exception from the final attempt
+(`handleRetryExhausted` ends in `throw wrapIfNecessary(context.getLastThrowable())`,
+which returns an `Exception` unchanged; see
+[`RetryTemplate`, v2.0.11](https://github.com/spring-projects/spring-retry/blob/v2.0.11/src/main/java/org/springframework/retry/support/RetryTemplate.java),
+the version in your `pom.xml`). So the typed exception reaches the controller
+unchanged, which is exactly what Day 15's `@Retryable` does too. (If you really
+want a recoverer, make it rethrow the typed exception unchanged.)
 
 #### 7. Run it, then re-ingest
 
@@ -535,17 +558,24 @@ Both startups must log the one-line provider message.
 
 Then do the part the primer warned about. The chunks already in your
 database were embedded by *one* provider; after switching, the question
-embedding comes from *another*. Remove the stale vectors and ingest again:
+embedding comes from *another*. Empty both tables and ingest again, with
+the same command and upload loop you used for the Day 8–10 re-ingest:
 
 ```bash
-# in your Postgres container (adjust the service/user/db names to your compose file)
-docker compose exec db psql -U <user> -d <db> -c "TRUNCATE chunk;"
+docker compose exec db sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "TRUNCATE document, chunk RESTART IDENTITY;"'
+
+for f in docs/curriculum/sample-data/*.txt docs/curriculum/sample-data/*.pdf; do
+  curl -s -o /dev/null -w "%{http_code} $f\n" -F "file=@$f" localhost:8080/documents/upload
+done
 ```
 
-then upload the six sample files again (the `docs/curriculum/sample-data/`
-files, same `curl -F file=@...` calls you used on Day 8–10). You can see
-the failure mode first if you want to: switch the provider *without*
-truncating, ask the equipment-stipend question from Day 11–14, and see what
+Truncate `document` as well as `chunk`: if you empty only `chunk`, the old
+`document` rows stay, and re-uploading the six files adds six *more* document
+rows each time you switch (nothing makes a filename unique), leaving the old
+ones with no chunks. (As on Day 8–10, the scanned PDF uploads but produces no
+chunks.) You can see the failure mode first if you want to: switch the
+provider *without* truncating, ask the equipment-stipend question from Day 11–14, and see what
 comes back. It will not error; it will just be wrong or arbitrary.
 
 ### Part 3 — Variations (optional, after the checkpoint passes)
@@ -624,7 +654,8 @@ You're done with Day 19 when all four of these pass.
 
 4. **`/ask` still works after a switch, only after re-ingesting.** With
    `EMBEDDINGS_PROVIDER=jina` (or whichever you switched to), the table
-   truncated and the six sample files re-uploaded:
+   emptied with step 7's `TRUNCATE document, chunk RESTART IDENTITY` and the
+   six sample files re-uploaded:
 
    ```bash
    curl -X POST localhost:8080/ask -H "Content-Type: application/json" \
@@ -1082,11 +1113,40 @@ float[] queryEmbedding = embeddingProvider.embed(request.question());
 
 Nothing else in the controller changes: the `catch (OpenAIException |
 TransientEmbeddingException | NonTransientEmbeddingException e)` still works
-because the exceptions are the ones the interface's contract promises. If your
-controller instead called `chunkingPipeline.embed(request.question())`, the
-change is the same three lines, and the `ChunkingPipeline` field and
-constructor parameter go away (and with them the controller's dependency on
-the ingestion class).
+because the exceptions are the ones the interface's contract promises.
+
+**If your own `AskController` has no `try/catch`** (it called
+`chunkingPipeline.embed(request.question())` and relied on a controller-level
+`@Retryable`/`@Recover` pair), the change is bigger than three lines: swap the
+embedding dependency as above (the `ChunkingPipeline` field and constructor
+parameter go away), **remove** the `@Retryable` annotation and the `@Recover`
+method together with their imports, and add Day 15's error handling in their
+place, so that a failure is still a clean `503` and not a raw `500`:
+
+```java
+// imports to add: java.util.Map, org.springframework.http.HttpStatus,
+// org.springframework.http.ResponseEntity, com.openai.errors.OpenAIException
+
+@PostMapping("/ask")
+public ResponseEntity<?> ask(@RequestBody AskRequest request) {   // was: AskResponse ask(...) throws Exception
+    try {
+        float[] queryEmbedding = embeddingProvider.embed(request.question());
+        // ... your existing steps 2-6 unchanged: findNearest, ContextChunk list,
+        //     PromptBuilder, chatClient call, citedDocuments ...
+        return ResponseEntity.ok(new AskResponse(answer, citedDocuments));
+    } catch (OpenAIException
+            | TransientEmbeddingException | NonTransientEmbeddingException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error",
+                        "The AI service is temporarily unavailable. Please try again shortly."));
+    }
+}
+```
+
+(Behavior change to be aware of: your fallback used to be a `200` with the
+text "The AI service is currently busy..."; Day 15's contract is a `503`
+with a JSON `error` field, and that is what the checkpoint's optional retry
+check expects. Both are clean, typed failures; neither is a stack trace.)
 
 **`HelloAiController.java`** (the Day 4 scaffold, now with no vendor code)
 
