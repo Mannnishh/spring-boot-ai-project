@@ -470,12 +470,23 @@ A person unfamiliar with the project can follow your README from a clean
 checkout to a working `curl /ask` call, with no undocumented steps. You
 are the unfamiliar person, so make the test honest: start from nothing.
 
+A clone contains only what is **committed**, so commit first. Commit
+`README.md` and every other file your README relies on (a changed
+`docker-compose.yml`, `.env.example`, an init script) on your feature
+branch, in the original repository. You do not need to push: the test
+clones from the local repository on disk.
+
 ```bash
+# In your original repository, on the feature branch:
+git add README.md sample-qa.md   # plus any compose/.env.example/init-script fixes
+git commit -m "docs: add README and sample Q&A"
+pwd   # note this path; it is <path-to-your-repo> below
+
 # 0. Stop and wipe the current stack, including the database volume.
 docker compose down -v
 
-# 1. Fresh clone in a throwaway directory (use your own repo URL).
-git clone <your-repo-url> /tmp/readme-test
+# 1. Fresh clone of that branch, from the local path, into a throwaway directory.
+git clone --branch docs/readme-and-demo-prep <path-to-your-repo> /tmp/readme-test
 cd /tmp/readme-test
 ```
 
@@ -484,8 +495,15 @@ top to bottom: create `.env` from `.env.example`, `docker compose up
 --build`, upload the six sample files, ask a question. Do not copy
 anything from your original working directory, and do not "just fix" a
 problem silently. Every time you have to do something the README did not
-tell you to do, you have found a bug in the README: fix the README (and
-re-run from step 0 if the fix changes the order).
+tell you to do, you have found a bug in the README.
+
+**Make each fix in your original repository, not in the clone** (a fix
+made in `/tmp/readme-test` is lost, and one made uncommitted in the
+original is invisible to the clone). Commit it on the same branch, then
+bring the clone up to date with `git -C /tmp/readme-test pull`, or throw
+it away and repeat from step 0: `rm -rf /tmp/readme-test` first, because
+`git clone` refuses to write into a directory that already exists and is
+not empty.
 
 You pass when this works in the clean checkout, using only README steps:
 
@@ -505,9 +523,9 @@ Also confirm, in the same session:
    expected file, and the vendor-contract line is present.
 2. Every item in the demo-prep checklist is ticked, including the
    multipart limit.
-3. `README.md` and `sample-qa.md` are committed on your feature branch
-   (a Conventional Commit such as `docs: add README and sample Q&A`),
-   and nothing real is in `.env.example`.
+3. Everything the test relied on is committed on your feature branch (the
+   clone proved it, since it had nothing else), and nothing real is in
+   `.env.example`.
 
 Step 0 matters for two reasons: it frees ports 8080 and 5432 from your
 working stack, and `-v` discards its database volume. After you fix the
