@@ -167,7 +167,10 @@ INSERT INTO chunk (document_id, content, embedding)
 -- ERROR:  expected 384 dimensions, not 100
 ```
 
-(Run `TRUNCATE chunk;` afterwards; these are throwaway rows.)
+(Clean up afterwards with
+`DELETE FROM chunk WHERE content IN ('from model A', 'from model B', 'wrong length');`.
+These are throwaway rows, and a bare `TRUNCATE chunk;` would delete every real
+chunk too.)
 
 The providers say the same thing in their own documentation:
 
@@ -326,7 +329,7 @@ interviewers actually probe:
    classes is which, and name one class in your project that you were tempted
    to call a pattern but is really just a class.
 
-Keep the notes. the interview write-up below reuses them.
+Keep the notes. The interview write-up below reuses them.
 
 ### Part 2 — Refactor: put embeddings behind an interface (guided TODO + hints)
 
@@ -414,7 +417,8 @@ For either provider the class must:
   `@Component`; the factory in step 5 builds it);
 - carry the Day 15 `@Retryable` on `embed(...)`, retrying only
   `TransientEmbeddingException`, with Day 15's numbers
-  (`maxRetries = 4, delay = 500, multiplier = 2, maxDelay = 4000`);
+  (`maxRetries = 4, delay = 500, multiplier = 2, maxDelay = 4000`; the
+  Spring Retry spelling of the same policy is in the note after this list);
 - map failures the Day 15 way: `429` or `5xx` or a network failure is
   `TransientEmbeddingException`; any other non-`200` is
   `NonTransientEmbeddingException`;
@@ -548,7 +552,18 @@ For every call site from step 1:
 (`org.springframework.resilience.annotation.Retryable`, enabled by
 `@EnableResilientMethods`). Your own app may still be on the older
 `org.springframework.retry.annotation.Retryable` with `@EnableRetry` and a
-`@Recover` method (the Day 15 primer explains why Spring Retry is archived
+`@Recover` method. If so, the equivalent of Day 15's numbers is
+`@Retryable(retryFor = TransientEmbeddingException.class, maxAttempts = 5,
+backoff = @Backoff(delay = 500, multiplier = 2, maxDelay = 4000))`, with
+`@Backoff` imported from `org.springframework.retry.annotation`. The two
+libraries count differently: Day 15's `maxRetries = 4` means four retries after
+the first call, while Spring Retry's `maxAttempts` includes the first call
+(its Javadoc: "the maximum number of attempts (including the first failure)"),
+so `maxRetries = 4` is `maxAttempts = 5`. Attribute names checked against
+[`Retryable`](https://github.com/spring-projects/spring-retry/blob/v2.0.11/src/main/java/org/springframework/retry/annotation/Retryable.java)
+and [`Backoff`](https://github.com/spring-projects/spring-retry/blob/v2.0.11/src/main/java/org/springframework/retry/annotation/Backoff.java)
+in v2.0.11, the version in your `pom.xml`. The rest of this note applies
+either way (the Day 15 primer explains why Spring Retry is archived
 and what replaced it). For this refactor the proxy rule is identical in both:
 the annotation goes on `embed(...)` of the provider *bean*. Keep whichever
 one you have working, with one difference to remember: **do not carry a
@@ -592,13 +607,32 @@ for f in docs/curriculum/sample-data/*.txt docs/curriculum/sample-data/*.pdf; do
 done
 ```
 
-Truncate `document` as well as `chunk`: if you empty only `chunk`, the old
+**This deletes every document and chunk in the database, including any you
+uploaded beyond the six sample files.** Truncate `document` as well as `chunk`: if you empty only `chunk`, the old
 `document` rows stay, and re-uploading the six files adds six *more* document
 rows each time you switch (nothing makes a filename unique), leaving the old
 ones with no chunks. (As on Day 8–10, the scanned PDF uploads but produces no
 chunks.) You can see the failure mode first if you want to: switch the
 provider *without* truncating, ask the equipment-stipend question from Day 11–14, and see what
 comes back. It will not error; it will just be wrong or arbitrary.
+
+#### 8. Update what Days 17 and 18 produced
+
+Those days documented the old shape of the app, so bring them in line before
+you call the refactor done:
+
+- **README.** The key list in "Configure your keys" (`EMBEDDINGS_PROVIDER`,
+  `HF_API_KEY`, `JINA_API_KEY`) and the "Known limitations" text about what
+  `/ask` returns when the AI service is down (now Day 15's `503` JSON error,
+  not a `200` fallback message).
+- **`.env.example`** and the `app` service's `environment:` block in
+  `docker-compose.yml`: add `EMBEDDINGS_PROVIDER` and the Jina key (and keep
+  the Hugging Face key) so a fresh clone still boots. Day 18's widened grep,
+  `grep -rhoE '\$\{[A-Z_]+(:[^}]*)?\}' src/main | sort -u`, lists every
+  placeholder including the ones with defaults.
+- **The `/ask` OpenAPI annotations from Day 17.** The `@Operation` description
+  and the `@ApiResponse` set should now describe the `503` JSON error, and
+  `@Hidden` on `HelloAiController` stays.
 
 ### Part 3 — Variations (optional, after the checkpoint passes)
 
@@ -662,7 +696,10 @@ You're done with Day 19 when all four of these pass.
 
 3. **Selection works, in both directions.** Start the app twice, once with
    `EMBEDDINGS_PROVIDER=huggingface` and once with `EMBEDDINGS_PROVIDER=jina`
-   (with a real key for the provider in use). Each startup log contains the
+   (the factory's `requireKey` check refuses to start on a blank key for the
+   provider being selected, but it never calls the vendor at startup, so for a
+   provider you cannot use, any non-blank placeholder such as `HF_API_KEY=dummy`
+   is enough to see its log line). Each startup log contains the
    factory's one line, naming the provider that was wired:
 
    ```
@@ -675,19 +712,31 @@ You're done with Day 19 when all four of these pass.
    line of the stack trace Spring prints).
 
 4. **`/ask` still works after a switch, only after re-ingesting.** With
-   `EMBEDDINGS_PROVIDER=jina` (or whichever you switched to), the table
-   emptied with step 7's `TRUNCATE document, chunk RESTART IDENTITY` and the
-   six sample files re-uploaded:
+   `EMBEDDINGS_PROVIDER=jina` (or whichever provider you can actually call), the
+   table emptied with step 7's `TRUNCATE document, chunk RESTART IDENTITY` and
+   the six sample files re-uploaded:
 
    ```bash
    curl -X POST localhost:8080/ask -H "Content-Type: application/json" \
-     -d '{"question":"What is the equipment stipend?"}'
+     -d '{"question":"What is the equipment stipend for remote work?"}'
    ```
 
    returns `200` with an answer naming `$500` and citing
-   `remote-work-policy.txt`, the same result as Day 11–14. Then switch back
-   (`EMBEDDINGS_PROVIDER=huggingface`), re-ingest again, and get the same
-   answer. Then run `./mvnw test`; the existing tests must still pass.
+   `remote-work-policy.txt`, the same result as Day 11–14. Then switch to the
+   other provider and, **if you can call it**, re-ingest and get the same
+   answer. Hugging Face's pricing page says free accounts must purchase credits
+   to use Inference Providers (see the
+   [overview](00-overview.md#prerequisites)), so you may not be able to.
+   For a provider you cannot call, the round trip is not required. Instead
+   accept all three of these: its startup log line from check 3, the
+   `EMBEDDINGS_PROVIDER=nonsense` refusal from check 3, and a **stub run**
+   showing the switch reaches the code path without the vendor. For the stub
+   run (keep the placeholder key), either point `embeddings.huggingface.url` (or `embeddings.jina.url`) at
+   a throwaway local fake server that returns a 384-number JSON array, or use
+   Variation 3's `FakeEmbeddingProvider`, then confirm an upload and an `/ask`
+   complete (the answers will be meaningless; this proves the plumbing, not the
+   retrieval quality). Then run `./mvnw test`; the existing tests must still
+   pass.
 
 **Optional, to see the proxy rule for yourself.** Temporarily point
 `embeddings.huggingface.url` at an invalid host (for example
@@ -1174,12 +1223,14 @@ public ResponseEntity<?> ask(@RequestBody AskRequest request) {   // was: AskRes
 }
 ```
 
-(Behavior change to be aware of: your fallback used to be a `200` with the
-text "The AI service is currently busy..."; Day 15's contract is a `503`
+(Behavior change to be aware of, if your own Day 15 code had a controller-level
+fallback: it used to be a `200` with text such as "The AI service is currently
+busy..."; Day 15's contract is a `503`
 with a JSON `error` field, and that is what the checkpoint's optional retry
 check expects. Both are clean, typed failures; neither is a stack trace.)
 
-**`HelloAiController.java`** (the Day 4 scaffold, now with no vendor code)
+**`HelloAiController.java`** (the Day 4 scaffold, now with no vendor code; keep
+`@Hidden` on the class if you added it on Day 17)
 
 ```java
 package com.example.demo;

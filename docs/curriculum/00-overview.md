@@ -34,9 +34,11 @@ everything else here and beyond.
     [User access tokens](https://huggingface.co/docs/hub/security-tokens)
     page; Day 4 says which permission the token needs. Check Hugging Face's
     [Inference Providers pricing](https://huggingface.co/docs/inference-providers/pricing)
-    page before relying on it: at the time of writing it lists no included
-    monthly credits for free accounts. If Hugging Face's embeddings won't
-    work for you, Jina AI is the alternative that
+    page before relying on it: at the time of writing it says free users
+    receive no monthly credits and "can use Inference Providers by
+    purchasing credits, or by upgrading to PRO", so a free account must
+    purchase credits before the embeddings calls work. If you would rather
+    not pay, or Hugging Face's embeddings won't work for you, Jina AI is the alternative that
     [Day 19](19-oop-retrospective.md) switches between by configuration.
 - **IDE:** [IntelliJ IDEA](https://www.jetbrains.com/idea/download/) is
   recommended. Since the 2025.3 "unified" release, JetBrains ships one
