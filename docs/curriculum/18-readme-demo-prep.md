@@ -10,6 +10,7 @@ demo-prep checklist you walk through once.
 
 **Pacing (about 6 hours):**
 
+- Carry-over fixes (below): ~45 minutes.
 - README draft: ~1.5 hours.
 - Clean-checkout test and fixing what it finds: ~1.5–2 hours. This is the
   step that always takes longer than planned, because it is where the
@@ -23,10 +24,161 @@ demo-prep checklist you walk through once.
 assumes no security. If you did Day 16, there is one clearly marked note
 ("If you completed Day 16") in the README exercise; ignore it otherwise.
 
+**Do the [carry-over fixes](#carry-over-fixes-before-the-clean-clone-test)
+first.** The clean-clone test at the end of today fails on four things in
+the app as it stands, and none of them is a README problem. Fixing them
+before writing the README means the test finds README gaps instead.
+
 **Which demo surface?** Day 17 had you build either Swagger UI (Option A)
 or a one-page frontend (Option B). Your README should point at whichever
 one you built. If you built both, point at the one you would actually
 open in front of someone.
+
+## Carry-over fixes before the clean-clone test
+
+A review of the app found four problems that a stranger's fresh clone will
+hit, and that your own machine hides because it has a warm database, a
+`.env` full of keys and a build that already worked. Each one is something
+today's checkpoint would otherwise fail on. Fix them on their own branch
+and merge it before starting the README branch:
+
+```bash
+git checkout -b fix/carry-over-clean-clone
+```
+
+**1. `mvnw` isn't executable in Git.** The `Dockerfile` runs
+`RUN ./mvnw -q -DskipTests package`. Git records a file's executable bit,
+and `mvnw` is stored as mode `100644` (not executable). Whether that bites
+depends on the machine that builds the image; a clone on Linux, macOS or
+WSL fails the build with `/bin/sh: 1: ./mvnw: Permission denied`. (Observed
+by building your `Dockerfile` from a `git archive` of the repository, which
+keeps the stored modes.) Record the bit with
+[`git update-index --chmod=+x`](https://git-scm.com/docs/git-update-index)
+and commit it:
+
+```bash
+git update-index --chmod=+x mvnw
+git commit -m "fix: make mvnw executable"
+```
+
+*Check:* [`git ls-files -s mvnw`](https://git-scm.com/docs/git-ls-files)
+prints a line that starts with `100755` instead of `100644`.
+
+**2. The Jina key never reaches the container.** `ChunkingPipeline` reads
+`${JINA_API_KEY}` and your `app` service in `docker-compose.yml` passes
+`GROQ_API_KEY` and `HF_API_KEY`, but not the Jina key, and `.env.example`
+doesn't list it either. Your `.dockerignore` keeps `.env` out of the image,
+so the `environment:` block is the *only* way a key reaches the container.
+Result: the container exits at startup with `Could not resolve placeholder
+'JINA_API_KEY'`, and a reader copying `.env.example` has no idea the key
+exists. Add the key to both files, next to the others.
+
+*Check:* `docker compose config` prints `JINA_API_KEY` under the `app`
+service's `environment:` (with the value from your `.env`), and
+`grep JINA .env.example` finds the placeholder. If you have done or will do
+[Day 19](19-oop-retrospective.md#8-update-what-days-17-and-18-produced),
+it adds `EMBEDDINGS_PROVIDER` to the same two files; you don't need it
+today.
+
+**3. The app won't start without a Hugging Face key.** `HelloAiController`
+(the Day 4 hello-world endpoints) takes `@Value("${HF_API_KEY}")` with no
+default, and Spring refuses to start on an unresolvable placeholder. Run
+the image with the Jina key and no `HF_API_KEY` variable at all and it
+stops with `Could not resolve placeholder 'HF_API_KEY'`. (With your current
+`docker-compose.yml` you may not see it, because Compose passes an *empty*
+`HF_API_KEY` when the variable isn't in `.env`, and an empty value
+resolves. It bites a Jina-only reader who drops the line, runs the jar
+directly, or follows a README that stops listing the key.) Two fixes;
+pick one:
+
+- *Keep the endpoints, make the key optional* (the Answer Key does this).
+  Give the placeholder an empty default, `${HF_API_KEY:}` (Spring's
+  [`@Value` default syntax](https://docs.spring.io/spring-framework/reference/core/beans/annotation-config/value-annotations.html)),
+  and make `/hello-embedding` answer with a clear `503` JSON error when the
+  key is blank, instead of calling Hugging Face with `Bearer ` and a
+  confusing failure.
+- *Delete the Day 4 hello controller*, if you no longer use it. Then no
+  Hugging Face key is read anywhere, and the key can leave `.env.example`
+  and the compose file. Deleting also removes the Day 17 `@Hidden` and the
+  two hello rows in its endpoint table, and means you skip Day 19's
+  `HelloAiController` steps.
+
+*Check:* the key-grep from step 1 of the exercise below
+(`grep -rhoE '\$\{[A-Z_]+(:[^}]*)?\}' src/main | sort -u`) shows
+`${HF_API_KEY:}` with its default (or no `HF_API_KEY` at all if you deleted
+the controller), and with the key blank, the app starts and
+`curl localhost:8080/hello-embedding` returns a `503` with an `error`
+message naming `HF_API_KEY`. Day 19 later routes this endpoint through the
+`EmbeddingProvider`, which removes the Hugging Face dependency here
+altogether.
+
+**4. A fresh database has no pgvector extension.** Nothing in the app or
+the compose file runs `CREATE EXTENSION vector`. You ran it by hand on Day
+8–10, so your volume has it. A stranger's empty volume doesn't, and
+(observed on an empty volume) the app still starts, logs `ERROR: type
+"vector" does not exist` while Hibernate tries to create `chunk`, and
+never creates the table, so every upload then fails. Fix it where the
+database is created: the official Postgres image runs `*.sql` files from
+`/docker-entrypoint-initdb.d` on first start
+([Docker Official Image: postgres, Initialization scripts](https://hub.docker.com/_/postgres)).
+Put the one SQL line in `docker/initdb/01-vector.sql` and mount that
+folder, read-only, into the `db` service.
+
+Two things to know:
+
+- **Init scripts run only when the data directory is empty** (same
+  source). On your existing volume the script does nothing, which is fine,
+  because your extension already exists. It matters for the clone.
+- **Make the healthcheck wait for the real server.** `pg_isready` with no
+  `-h` connects through a Unix-domain socket (libpq's default: see
+  [the `host` parameter](https://www.postgresql.org/docs/current/libpq-connect.html)),
+  and during first-time initialization the image runs a temporary server
+  that is reachable only that way. Observed with a deliberately slow init
+  script: the container reported *healthy* after 4 seconds while TCP port
+  connections were refused for another 12, so `depends_on:
+  condition: service_healthy` could start the app too early. Adding
+  `-h localhost`
+  ([`pg_isready -h`](https://www.postgresql.org/docs/current/app-pg-isready.html))
+  makes the check use TCP, and it only turned healthy once the server was
+  really up. Your script is instant, so you'd rarely hit this, but it costs
+  one flag.
+
+*Check:* the script only fires on an empty volume, so test with a throwaway
+Compose project name, which gets its own new volume. Stop your stack first,
+because both would publish port 5432:
+
+```bash
+docker compose down
+docker compose -p vectorcheck up -d --wait db
+docker compose -p vectorcheck exec db sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select extname from pg_extension"'
+# -> plpgsql
+#    vector
+docker compose -p vectorcheck down -v
+docker compose up -d      # your own stack again
+```
+
+(`-p` is Compose's
+[project-name option](https://docs.docker.com/reference/cli/docker/compose/),
+[`--wait`](https://docs.docker.com/reference/cli/docker/compose/up/) waits
+for the service to be healthy, and `down -v` throws the throwaway volume
+away. Your own volume is untouched.) The full clean-clone test below checks
+the same thing end to end.
+
+If you'd rather not add a file, the manual alternative is a README step: once
+the `db` container is healthy, run
+`docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS vector;"'`
+and then `docker compose restart app` so Hibernate can create the table.
+It works, but it is one more step for a stranger to get wrong, so the init
+script is the better trade.
+
+**Carry-over checkpoint:** `git ls-files -s mvnw` shows `100755`;
+`docker compose config` lists `JINA_API_KEY` for the `app`; the throwaway
+project above lists `vector`; `docker compose up --build` on your own stack
+still starts cleanly. Commit each fix separately, merge through a PR
+(`fix: carry over clean-clone blockers`), then branch the README work
+from the updated `main`. The answer key for these four fixes is at the
+bottom of this file.
 
 ## Concept primer
 
@@ -139,6 +291,29 @@ terminal and nothing else. Today's checkpoint is exactly that test.
   Hugging Face to Jina AI after Day 4; it is the page where that provider's
   API key and free trial are described.
 
+**Carry-over fixes (above)**
+
+- [`git update-index`](https://git-scm.com/docs/git-update-index) —
+  `--chmod=(+|-)x` sets the execute permission on the updated files, which
+  is how `mvnw` becomes mode `100755` without leaving the repository.
+  [`git ls-files --stage`](https://git-scm.com/docs/git-ls-files) shows the
+  stored mode.
+- [Docker Official Image: postgres](https://hub.docker.com/_/postgres) —
+  scripts in `/docker-entrypoint-initdb.d` run only "if you start the
+  container with a data directory that is empty" (same page as above).
+- [`pg_isready`](https://www.postgresql.org/docs/current/app-pg-isready.html)
+  (`-h` takes a host name, or a socket directory if it begins with a slash)
+  and libpq's
+  [`host` parameter](https://www.postgresql.org/docs/current/libpq-connect.html)
+  (no host means a Unix-domain socket). The "temporary server is
+  socket-only" part is an observation, not a documented guarantee.
+- [Compose file reference — `volumes`](https://docs.docker.com/reference/compose-file/services/#volumes)
+  — the short syntax `HOST:CONTAINER_PATH:ro` for a read-only bind mount;
+  [`docker compose up --wait`](https://docs.docker.com/reference/cli/docker/compose/up/)
+  and the [`-p` project-name option](https://docs.docker.com/reference/cli/docker/compose/).
+- [Spring Framework — `@Value`](https://docs.spring.io/spring-framework/reference/core/beans/annotation-config/value-annotations.html)
+  — the `${name:default}` syntax.
+
 **Internal (already verified on earlier days)**
 
 - [Day 1 — `.gitignore` and the `.env` habit](01-day1-git-and-style.md)
@@ -160,9 +335,11 @@ Do today's work on a feature branch, per Day 1:
 git checkout -b docs/readme-and-demo-prep
 ```
 
-**There is no answer key today.** The output is your own project's
-README and your own app's answers, not a fixed correct result, so there
-is nothing to check against. Use the checkpoint at the bottom instead.
+**There is no answer key for the exercise.** The output is your own
+project's README and your own app's answers, not a fixed correct result,
+so there is nothing to check against; use the checkpoint at the bottom
+instead. (The answer key at the bottom of this file covers only the four
+carry-over fixes above.)
 
 ### 1. TODO — write the project README
 
@@ -225,40 +402,23 @@ Hints, section by section:
   put in `.env`. Every name your app needs at startup must appear in all
   three, or a fresh clone will fail to start. A key needed only by a
   leftover scaffold from an earlier day still counts if the app refuses
-  to boot without it: either list it, or remove the dead code. Link back
+  to boot without it: either list it, or remove the dead code (carry-over
+  fix 3 above is exactly this case for `HF_API_KEY`). Link back
   to [Day 1](01-day1-git-and-style.md) for why `.env` is gitignored, and
   say plainly that `.env.example` holds placeholders, never real keys.
 - **3. Start everything.** The command is `docker compose up --build`
   from the repository root, and say what "ready" looks like (the log line
-  `Started SpringBootAiProjectApplication`). Then handle the database:
-  **your `chunk` table needs the pgvector `vector` extension, and a fresh
-  database does not have it.** Day 8–10 had you run
-  `CREATE EXTENSION IF NOT EXISTS vector;` by hand once. A stranger will
-  not know that, and (observed against this project's code on an empty
-  database) the app still starts, logs `type "vector" does not exist`, and
-  does not create the `chunk` table, so uploads then fail. Two ways to
-  fix it; pick one and document it:
-  - *Document the manual step.* Run it once after the database container
-    is healthy, then restart the app so Hibernate can create the table:
-
-    ```bash
-    docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS vector;"'
-    docker compose restart app
-    ```
-
-    If the image build fails at the `./mvnw` step with `permission
-    denied`, the file's executable bit was never committed (Git records
-    it, and a file created without it is stored as mode 100644). Fix it
-    with `git update-index --chmod=+x mvnw` and commit the change, or
-    change the Dockerfile line to `RUN sh mvnw ...`. A fresh clone will
-    hit the same error, so it is a README-test bug worth finding.
-  - *Automate it (preferred; one fewer step to document).* Put the one
-    SQL line in a file such as `docker/initdb/01-vector.sql` and mount
-    that directory into the `db` service at
-    `/docker-entrypoint-initdb.d` (see the Postgres image link above).
-    The catch, from the same source: init scripts run only when the data
-    directory is empty, so you must test it on an empty volume (the
-    clean-clone test below gives you one), or the old volume skips them.
+  `Started SpringBootAiProjectApplication`). Then explain the database in one
+  sentence: the `vector` extension is created automatically the first time
+  the database volume is created (carry-over fix 4 above), so a reader
+  has nothing to run by hand. Add the one catch for someone re-running it:
+  init scripts only run on an *empty* volume, so a volume created before
+  the script existed needs `docker compose down -v` (which deletes its
+  data) before the extension appears. If you chose the manual alternative in fix 4 instead, the manual
+  `CREATE EXTENSION` step and the `docker compose restart app` after it
+  belong here, in the README. The `./mvnw` permission problem is carry-over
+  fix 1; if a reader reports `permission denied` at the build step, that
+  fix didn't make it into the commit they cloned.
 - **Upload the sample documents.** The upload endpoint takes a multipart
   form field named `file` at `/documents/upload`. A loop over all six
   files saves typing and shows the status code per file:
@@ -551,6 +711,11 @@ Also confirm, in the same session:
 3. Everything the test relied on is committed on your feature branch (the
    clone proved it, since it had nothing else), and nothing real is in
    `.env.example`.
+4. The clone built the image (carry-over fix 1), started the `app` with the
+   Jina key from its own `.env` (fix 2), and created the `chunk` table on
+   its own empty volume with no manual `CREATE EXTENSION` (fix 4). If any of
+   those needed a hand-typed command, that fix isn't committed on the branch
+   you cloned.
 
 Step 0 frees ports 8080 and 5432 from your working stack. It does not
 need `-v`: Compose names volumes after the project directory, so the clone
@@ -576,8 +741,10 @@ because you did it:
   it found real gaps."** Be specific. On an empty database the app starts
   but does not create the `chunk` table until the `vector` extension
   exists, which a README written from a working machine would have
-  skipped. A key your app reads but your example env file or Compose file
-  omits is another one. This is a better story than "I wrote a README."
+  skipped; I fixed it with an init script, not a manual step. A key your
+  app reads but your example env file or Compose file omits is another one,
+  and so is a build script that is not executable in Git. This is a better
+  story than "I wrote a README."
 - **"I designed the demo around the failure modes I knew about."** Free-tier
   throttling is real (you handled it on Day 15); so the demo uses a small
   fixed corpus, pre-loaded data, a warm start, a short list of known-answer
@@ -592,3 +759,163 @@ because you did it:
 - **The honest next step, if asked:** OCR for scanned documents as a
   separate pipeline stage, and moving embedding off the request thread so
   large uploads don't block.
+
+## Answer Key (attempt it yourself first!)
+
+Only read this after the carry-over checkpoint passes. It covers the four
+carry-over fixes only; the README and `sample-qa.md` are yours. Everything
+here was built and run against a copy of the app: the `Dockerfile` failed
+with `Permission denied` before fix 1 and built after it; the `app` service
+configuration listed `JINA_API_KEY`; on a brand-new volume the `vector`
+extension existed and Hibernate created `chunk`; the app started with a
+Jina key and no `HF_API_KEY` variable at all; an empty upload returned
+`400`; and deleting an uploaded document left `0` rows for its id in `chunk`.
+(Jina was faked by a local server returning
+`{"data":[{"embedding":[...384 numbers...]}]}`, so no real key was used.)
+
+**Fix 1: `mvnw` executable bit**
+
+```bash
+git update-index --chmod=+x mvnw
+git commit -m "fix: make mvnw executable"
+git ls-files -s mvnw
+# 100755 <hash> 0	mvnw
+```
+
+**Fixes 2 and 4: `docker-compose.yml`** (changes: the init-script mount, the
+healthcheck's `-h localhost`, and `JINA_API_KEY`; everything else is as you
+had it)
+
+```yaml
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      HF_API_KEY: ${HF_API_KEY}
+      JINA_API_KEY: ${JINA_API_KEY}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+    pgdata:
+```
+
+**Fix 2: `.env.example`**
+
+```
+POSTGRES_DB=ragdb
+POSTGRES_USER=raguser
+POSTGRES_PASSWORD=ragpassword123
+SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/ragdb
+SPRING_DATASOURCE_USERNAME=raguser
+SPRING_DATASOURCE_PASSWORD=ragpassword123
+GROQ_API_KEY=PASTE_YOUR_NEW_GROQ_KEY_HERE
+JINA_API_KEY=PASTE_YOUR_NEW_JINA_KEY_HERE
+HF_API_KEY=PASTE_YOUR_NEW_HF_KEY_HERE
+```
+
+**Fix 4: `docker/initdb/01-vector.sql`** (a new file; commit it)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+**Fix 3: `HelloAiController.java`** (option 1, keep the endpoints; the
+`/hello-groq` method is unchanged and the Hugging Face call keeps its
+parsing)
+
+```java
+package com.manish.spring_boot_ai_project;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Map;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HelloAiController {
+
+  private final ChatClient chatClient;
+  private final String hfApiKey;
+  private final HttpClient http = HttpClient.newHttpClient();
+  private final ObjectMapper objectMapper = new ObjectMapper();
+
+  public HelloAiController(
+      ChatClient.Builder chatClientBuilder, @Value("${HF_API_KEY:}") String hfApiKey) {
+    this.chatClient = chatClientBuilder.build();
+    this.hfApiKey = hfApiKey;
+  }
+
+  // 1. LLM Chat Completion (Groq)
+  @GetMapping("/hello-groq")
+  public String helloGroq() {
+    return chatClient.prompt("Say hello in one creative sentence.").call().content();
+  }
+
+  // 2. Vector Embedding (Hugging Face) -> Returns 384-dimensional vector
+  @GetMapping("/hello-embedding")
+  public ResponseEntity<?> helloEmbedding() throws Exception {
+    if (hfApiKey.isBlank()) {
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("error", "HF_API_KEY is not set. Add it to .env to use this endpoint."));
+    }
+
+    String url =
+        "https://router.huggingface.co/hf-inference/models/"
+            + "sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction";
+
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Authorization", "Bearer " + hfApiKey)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("{\"inputs\":\"hello world\"}"))
+            .build();
+
+    HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+
+    // Parse array-of-arrays returned by Hugging Face: [[0.012, -0.045, ...]]
+    try {
+      return ResponseEntity.ok(objectMapper.readValue(response.body(), float[].class));
+    } catch (Exception e) {
+      float[][] nested = objectMapper.readValue(response.body(), float[][].class);
+      return ResponseEntity.ok(nested[0]);
+    }
+  }
+}
+```
+
+Option 2 is simply deleting `HelloAiController.java`. If you do, also remove
+`HF_API_KEY` from `.env.example` and the `app` service in
+`docker-compose.yml`, and the README's key list.
