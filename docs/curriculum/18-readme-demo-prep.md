@@ -52,17 +52,30 @@ and `mvnw` is stored as mode `100644` (not executable). Whether that bites
 depends on the machine that builds the image; a clone on Linux, macOS or
 WSL fails the build with `/bin/sh: 1: ./mvnw: Permission denied`. (Observed
 by building your `Dockerfile` from a `git archive` of the repository, which
-keeps the stored modes.) Record the bit with
-[`git update-index --chmod=+x`](https://git-scm.com/docs/git-update-index)
-and commit it:
+keeps the stored modes.) Fix both the file and what Git records:
 
 ```bash
+chmod +x mvnw
 git update-index --chmod=+x mvnw
 git commit -m "fix: make mvnw executable"
 ```
 
+You need both commands. [`git update-index --chmod=+x`](https://git-scm.com/docs/git-update-index)
+changes only what Git records in its index; it leaves the file on disk
+as it was. On Linux, macOS and WSL, Git then sees the on-disk file (still
+not executable) differ from the index, `git status` shows ` M mvnw`, and the
+next `git add .` (Day 1 teaches it) records `100644` again, silently undoing
+the fix. `chmod +x` makes the file itself match (it is a harmless no-op in
+Git Bash on Windows). The `core.filemode` paragraph on the same
+git-update-index page describes the other side: on a filesystem whose
+executable bits are unreliable, Git ignores the file's bit and `--chmod` is
+the way to set it; everywhere else Git reads the bit from the file.
+
 *Check:* [`git ls-files -s mvnw`](https://git-scm.com/docs/git-ls-files)
-prints a line that starts with `100755` instead of `100644`.
+prints a line that starts with `100755` instead of `100644`, and
+`git status` is clean. (Reproduced in a scratch repository: with only
+`update-index`, an unrelated `git add . && git commit` put `mvnw` back to
+`100644`; with `chmod +x` first it stayed `100755` and the status was clean.)
 
 **2. The Jina key never reaches the container.** `ChunkingPipeline` reads
 `${JINA_API_KEY}` and your `app` service in `docker-compose.yml` passes
@@ -133,7 +146,9 @@ Two things to know:
   `-h` connects through a Unix-domain socket (libpq's default: see
   [the `host` parameter](https://www.postgresql.org/docs/current/libpq-connect.html)),
   and during first-time initialization the image runs a temporary server
-  that is reachable only that way. Observed with a deliberately slow init
+  that, per the image's documentation, "listens only on the Unix socket"
+  ([Docker Official Image: postgres](https://hub.docker.com/_/postgres)).
+  Observed with a deliberately slow init
   script: the container reported *healthy* after 4 seconds while TCP port
   connections were refused for another 12, so `depends_on:
   condition: service_healthy` could start the app too early. Adding
@@ -268,7 +283,8 @@ terminal and nothing else. Today's checkpoint is exactly that test.
 - [Docker Official Image: postgres — Initialization scripts](https://hub.docker.com/_/postgres)
   — `*.sql` files placed in `/docker-entrypoint-initdb.d` run on first
   start, but only when the container starts with an empty data directory,
-  in sorted filename order. Used for the `vector` extension below.
+  in sorted filename order. The carry-over fixes above use it for the
+  `vector` extension (fix 4); the quoted details are repeated there.
 - [`git ls-files`](https://git-scm.com/docs/git-ls-files) and
   [`git log`](https://git-scm.com/docs/git-log) — used by the secrets
   check. `ls-files` lists tracked files by default; `git log --all
@@ -305,8 +321,9 @@ terminal and nothing else. Today's checkpoint is exactly that test.
   (`-h` takes a host name, or a socket directory if it begins with a slash)
   and libpq's
   [`host` parameter](https://www.postgresql.org/docs/current/libpq-connect.html)
-  (no host means a Unix-domain socket). The "temporary server is
-  socket-only" part is an observation, not a documented guarantee.
+  (no host means a Unix-domain socket). The postgres image page says the
+  temporary daemon started for the initialization scripts "listens only on
+  the Unix socket", which is why a socket-based `pg_isready` can pass early.
 - [Compose file reference — `volumes`](https://docs.docker.com/reference/compose-file/services/#volumes)
   — the short syntax `HOST:CONTAINER_PATH:ro` for a read-only bind mount;
   [`docker compose up --wait`](https://docs.docker.com/reference/cli/docker/compose/up/)
@@ -776,10 +793,13 @@ Jina key and no `HF_API_KEY` variable at all; an empty upload returned
 **Fix 1: `mvnw` executable bit**
 
 ```bash
-git update-index --chmod=+x mvnw
+chmod +x mvnw                     # the file on disk
+git update-index --chmod=+x mvnw  # what Git records
 git commit -m "fix: make mvnw executable"
 git ls-files -s mvnw
 # 100755 <hash> 0	mvnw
+git status
+# nothing to commit, working tree clean
 ```
 
 **Fixes 2 and 4: `docker-compose.yml`** (changes: the init-script mount, the
@@ -845,7 +865,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 **Fix 3: `HelloAiController.java`** (option 1, keep the endpoints; the
 `/hello-groq` method is unchanged and the Hugging Face call keeps its
-parsing)
+parsing; keep `@Hidden` and its import on the class if you added it on Day 17)
 
 ```java
 package com.manish.spring_boot_ai_project;
