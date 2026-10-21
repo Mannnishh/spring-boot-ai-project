@@ -33,6 +33,111 @@ main path below assumes an app with no security (Days 1–15). If you did
 the optional Day 16, each option has a clearly marked subsection titled
 "If you completed Day 16 (JWT)" — ignore those if you didn't.
 
+**Do the [carry-over fixes](#carry-over-fixes-from-days-815) first.** A
+review of the Day 8–15 code found three problems in the app you are about
+to put a face on. Two are small fixes; one is a known issue that a later
+day repairs. Today's Swagger page and browser page would make them very
+visible.
+
+## Carry-over fixes from Days 8–15
+
+A review of the Day 8–15 code (yours, compared with this curriculum's
+answer keys) found three problems that today's demo surface exposes. Fix
+the first two on their own branch, and merge it before starting today's
+feature branch:
+
+```bash
+git checkout -b fix/carry-over-days-8-15
+```
+
+**1. Deleting a document leaves its chunks behind.** `DELETE /documents/{id}`
+only removes the `document` row. The document's rows in the `chunk` table
+stay, still match similarity search, and `/ask` keeps retrieving them and
+citing a filename the user was told is gone (your `filenameFor` falls back to
+`unknown`). In the Swagger UI you build today, "Try it out" on `DELETE` is
+one click, so this is easy to trigger. Day 8–10
+[step 5](08-10-chunking-embedding-pipeline.md#5-todo--run-the-pipeline-on-every-upload-and-clean-up-on-delete)
+taught deleting the chunks with the document; that step didn't make it
+into your code.
+
+What to change, in three places:
+
+- `ChunkRepository`: add a derived delete query,
+  `void deleteByDocumentId(Long documentId)`. Spring Data JPA supports
+  [derived delete queries](https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html),
+  but a query method you declare yourself gets no transaction by default
+  ([Spring Data JPA — Transactionality](https://docs.spring.io/spring-data/jpa/reference/jpa/transactions.html):
+  "Declared query methods (including default methods) do not get any
+  transaction configuration applied by default"), so it needs
+  `@Transactional`
+  (`org.springframework.transaction.annotation.Transactional`). Without it
+  the call fails with `No EntityManager with actual transaction available`.
+- `ChunkingPipeline`: add `remove(Long documentId)`, which calls that
+  repository method. (Day 19's refactor leaves this method alone.)
+- `DocumentController.delete`: call `chunkingPipeline.remove(id)` before
+  `repository.deleteById(id)`.
+
+*Check:* upload a sample file, note its id from the `201` response, delete
+it, then count its chunks:
+
+```bash
+docker compose exec db sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) from chunk where document_id = <id>;"'
+```
+
+Before the fix the count stays at the number of chunks the file produced
+(two, for `remote-work-policy.txt`); after it, `0`. Chunks orphaned by
+earlier deletes stay in the table, because the fix only prevents new ones.
+Remove them once with:
+
+```sql
+delete from chunk where document_id not in (select id from document);
+```
+
+(Or empty both tables and re-upload the sample files, as in Day 8–10's
+step 5.) One limit worth knowing: the two deletes are separate
+transactions, so a crash between them leaves a document with no chunks.
+That's harmless for retrieval; a production system would wrap both in one
+service-level transaction.
+
+**2. An empty upload isn't rejected.** `upload(...)` hands a zero-byte file
+straight to Tika, which throws `ZeroByteFileException`, and the client sees
+a `500`. A client sending an empty file made a mistake of its own, so the
+answer is `400`, checked before Tika runs. This is Day 8–10's
+[carry-over fix 2](08-10-chunking-embedding-pipeline.md#carry-over-fixes-from-days-37);
+the guard is missing from your current code. Today's checkpoint (the
+empty-file step in Option B) shows the difference on screen.
+
+*Check:*
+
+```bash
+: > empty.txt
+curl -s -o /dev/null -w '%{http_code}\n' -F "file=@empty.txt" localhost:8080/documents/upload
+# -> 400
+```
+
+Your `DocumentControllerTest` currently has one test. Add one for each fix
+above (the Answer Key has both); they fail on the old controller and pass
+on the fixed one, which is what makes them worth keeping.
+
+**3. (Known issue, fixed on Day 19; leave it alone today.)**
+`AskController.ask` carries a `@Retryable(retryFor = Exception.class,
+maxAttempts = 3)` and a `@Recover` method that returns a normal `200`
+response with "The AI service is currently busy...". That retries
+*every* exception, including a bad request that can never succeed, three
+times, and then reports success to the client. Day 19, step 6, replaces it
+with retry inside the embeddings provider and Day 15's `503` JSON error, so
+fixing it here would be doing the work twice. Until then, expect that
+`200` fallback in Swagger UI (and the browser page) whenever the AI call
+fails, and keep it in mind when you write the `/ask` annotations: describe
+the `503` only if your `ask()` returns one.
+
+**Carry-over checkpoint:** after `docker compose up --build`, the empty-file
+`curl` returns `400`, and deleting a freshly uploaded document leaves
+`0` rows in `chunk` for its id. `./mvnw test` passes. Merge through a PR
+(`fix: carry over days 8-15 review fixes`), then branch today's work from the
+updated `main`.
+
 ## Concept primer
 
 ### Three different things that all get called "Swagger"
@@ -771,10 +876,10 @@ from A3 — fix the pom, don't change the annotations.
    listed as a source.
 4. **Errors are visible, not silent.** Create an empty file
    (`: > empty.txt`) and upload it. The status line should read
-   `Upload failed: HTTP 400` if you applied
-   [Day 8–10's carry-over fix 2](08-10-chunking-embedding-pipeline.md#carry-over-fixes-from-days-37)
-   (an empty upload answered with `400` before Tika runs), and
-   `Upload failed: HTTP 500` if you did not (Apache Tika throws
+   `Upload failed: HTTP 400` once you have applied
+   [carry-over fix 2](#carry-over-fixes-from-days-815) above (an empty
+   upload answered with `400` before Tika runs), and
+   `Upload failed: HTTP 500` if you have not (Apache Tika throws
    `ZeroByteFileException` on a zero-byte stream and the controller
    returns `500`). Either way it must show an error instead of doing
    nothing.
@@ -830,6 +935,91 @@ Only read this after your option's checkpoint passes, or after you've been
 stuck on a step for a full 30 minutes. Everything here was compiled and
 booted against Spring Boot 4.1.1 / springdoc 3.1.1 before being written
 down. It is one reasonable design, not the only correct one.
+
+### Carry-over fixes (Days 8–15)
+
+Compiled and run against a copy of this project's app: with the fixes, the
+empty-file `curl` returned `400`, and a deleted document left `0` rows in
+`chunk` (before them: `500`, and the chunks stayed). The snippets use your
+2-space style and your package; only the changed parts are shown.
+
+**`ChunkRepository.java`**: one new import and one new method (fix 1):
+
+```java
+import org.springframework.transaction.annotation.Transactional;
+
+public interface ChunkRepository extends JpaRepository<Chunk, Long> {
+
+  // ... findNearest and findByDocumentId unchanged ...
+
+  @Transactional
+  void deleteByDocumentId(Long documentId);
+}
+```
+
+**`ChunkingPipeline.java`**: one new method (fix 1), next to `ingest`:
+
+```java
+  public void remove(Long documentId) {
+    chunkRepository.deleteByDocumentId(documentId);
+  }
+```
+
+**`DocumentController.java`**: the guard at the top of `upload` (fix 2) and
+the chunk cleanup in `delete` (fix 1):
+
+```java
+  @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file)
+      throws Exception {
+    if (file.isEmpty()) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    // ... the rest of upload is unchanged ...
+  }
+
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable Long id) {
+    if (repository.existsById(id)) {
+      chunkingPipeline.remove(id);
+      repository.deleteById(id);
+      return ResponseEntity.noContent().build();
+    }
+
+    return ResponseEntity.notFound().build();
+  }
+```
+
+**`DocumentControllerTest.java`**: two new tests next to `unknownIdReturns404`
+(with the imports they need). With the old controller, the first fails with
+a `NullPointerException` from Tika's mock and the second with Mockito's
+"Wanted but not invoked", so each one catches the bug it is named for:
+
+```java
+import static org.mockito.Mockito.inOrder;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+
+import org.mockito.InOrder;
+import org.springframework.mock.web.MockMultipartFile;
+
+  @Test
+  void emptyUploadReturns400() throws Exception {
+    MockMultipartFile empty = new MockMultipartFile("file", "empty.txt", "text/plain", new byte[0]);
+    mvc.perform(multipart("/documents/upload").file(empty)).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteRemovesChunksBeforeTheDocument() throws Exception {
+    when(repository.existsById(7L)).thenReturn(true);
+    mvc.perform(delete("/documents/7")).andExpect(status().isNoContent());
+
+    InOrder order = inOrder(chunkingPipeline, repository);
+    order.verify(chunkingPipeline).remove(7L);
+    order.verify(repository).deleteById(7L);
+  }
+```
 
 ### Option A
 
