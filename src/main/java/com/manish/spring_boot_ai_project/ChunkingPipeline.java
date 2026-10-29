@@ -53,6 +53,10 @@ public class ChunkingPipeline {
     }
   }
 
+  public void remove(Long documentId) {
+    chunkRepository.deleteByDocumentId(documentId);
+  }
+
   @Retryable(
       retryFor = {Exception.class},
       maxAttempts = 3,

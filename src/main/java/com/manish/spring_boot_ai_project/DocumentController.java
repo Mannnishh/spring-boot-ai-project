@@ -27,6 +27,9 @@ public class DocumentController {
   @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<Document> upload(@RequestParam("file") MultipartFile file)
       throws Exception {
+    if (file.isEmpty()) {
+      return ResponseEntity.badRequest().build();
+    }
     // Extract plain text using Apache Tika
     String extractedText = tika.parseToString(file.getInputStream());
 
@@ -66,6 +69,7 @@ public class DocumentController {
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(@PathVariable Long id) {
     if (repository.existsById(id)) {
+      chunkingPipeline.remove(id);
       repository.deleteById(id);
       return ResponseEntity.noContent().build();
     }
