@@ -21,7 +21,7 @@ public class HelloAiController {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public HelloAiController(
-      ChatClient.Builder chatClientBuilder, @Value("${HF_API_KEY}") String hfApiKey) {
+      ChatClient.Builder chatClientBuilder, @Value("${HF_API_KEY:}") String hfApiKey) {
     this.chatClient = chatClientBuilder.build();
     this.hfApiKey = hfApiKey;
   }
