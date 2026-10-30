@@ -56,6 +56,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- SpringDoc OpenAPI 3 (Swagger UI for Spring Boot 4) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>3.1.1</version>
+        </dependency>
+
         <!-- Test Dependencies (Split in Boot 4) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -72,6 +79,12 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.swagger.core.v3</groupId>
+                    <artifactId>swagger-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Apache Tika 4.0.0 -->
@@ -108,6 +121,13 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>2.0.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-bom</artifactId>
+                <version>3.1.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

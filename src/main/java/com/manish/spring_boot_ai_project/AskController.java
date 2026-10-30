@@ -1,5 +1,12 @@
 package com.manish.spring_boot_ai_project;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Locale;
 import org.slf4j.Logger;
@@ -12,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Ask", description = "Query uploaded documents via RAG")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 public class AskController {
 
@@ -49,6 +58,39 @@ public class AskController {
     this.chunkingPipeline = chunkingPipeline;
   }
 
+  @Operation(
+      summary = "Ask a question",
+      description =
+          "Embeds the question, retrieves matching chunks from pgvector, and generates a grounded answer via Groq LLM.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Grounded answer with cited documents",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = AskResponse.class),
+                    examples = {
+                      @ExampleObject(
+                          name = "Normal Answer",
+                          value =
+                              """
+                                                            {
+                                                              "answer": "The equipment stipend for remote work is a one-time annual amount of $500.",
+                                                              "citedDocuments": ["remote-work-policy.txt"]
+                                                            }
+                                                            """),
+                      @ExampleObject(
+                          name = "Not in the documents",
+                          value =
+                              """
+                                                            {
+                                                              "answer": "I don't have enough information to answer that.",
+                                                              "citedDocuments": ["remote-work-policy.txt"]
+                                                            }
+                                                            """)
+                    }))
+      })
   @Retryable(
       retryFor = {Exception.class},
       maxAttempts = 3,
