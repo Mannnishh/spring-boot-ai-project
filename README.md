@@ -57,6 +57,7 @@ SPRING_DATASOURCE_USERNAME=raguser
 SPRING_DATASOURCE_PASSWORD=ragpassword123
 GROQ_API_KEY=your_groq_api_key_here
 JINA_API_KEY=your_jina_api_key_here
+EMBEDDINGS_PROVIDER=jina
 ```
 
 ### 3. Start the Stack with Docker Compose
@@ -133,7 +134,7 @@ A pre-validated cache of 7 verification questions across the sample corpus is do
 
 ## Known Limitations
 * **No OCR for Scanned Documents**: `vendor-contract-summary-scanned.pdf` is an image-only PDF. Apache Tika extracts 0 text characters, so the model correctly reports: *"I don't have enough information to answer that."* OCR (e.g., Tesseract) would be the next architectural iteration.
-* **Rate Limits & Resilience**: Uses Groq and Jina AI free-tier endpoints. To handle API throttling, `@Retryable` with exponential backoff and `@Recover` fallbacks are built into both the embedding pipeline and `/ask` controller.
+* **Rate Limits & Resilience**: Uses Groq and Jina AI / Hugging Face endpoints behind an EmbeddingProvider adapter. To handle transient failures, @Retryable with exponential backoff retries 4 times before failing cleanly with HTTP 503 Service Unavailable.
 * **Synchronous Ingestion**: Documents are chunked and embedded synchronously on the HTTP upload thread. For high-volume production loads, ingestion should be offloaded to an asynchronous message queue (e.g., Kafka / RabbitMQ).
 
 ---
