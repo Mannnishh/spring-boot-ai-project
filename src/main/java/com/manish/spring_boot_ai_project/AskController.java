@@ -1,5 +1,6 @@
 package com.manish.spring_boot_ai_project;
 
+import com.openai.errors.OpenAIException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -9,12 +10,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,17 +46,17 @@ public class AskController {
   private final ChatClient chatClient;
   private final ChunkRepository chunkRepository;
   private final DocumentRepository documentRepository;
-  private final ChunkingPipeline chunkingPipeline;
+  private final EmbeddingProvider embeddingProvider;
 
   public AskController(
       ChatClient.Builder chatClientBuilder,
       ChunkRepository chunkRepository,
       DocumentRepository documentRepository,
-      ChunkingPipeline chunkingPipeline) {
+      EmbeddingProvider embeddingProvider) {
     this.chatClient = chatClientBuilder.build();
     this.documentRepository = documentRepository;
     this.chunkRepository = chunkRepository;
-    this.chunkingPipeline = chunkingPipeline;
+    this.embeddingProvider = embeddingProvider;
   }
 
   @Operation(
@@ -89,51 +90,50 @@ public class AskController {
                                                               "citedDocuments": ["remote-work-policy.txt"]
                                                             }
                                                             """)
-                    }))
+                    })),
+        @ApiResponse(
+            responseCode = "503",
+            description = "AO service or embedding provider is temporarily unavailable")
       })
-  @Retryable(
-      retryFor = {Exception.class},
-      maxAttempts = 3,
-      backoff = @Backoff(delay = 1000, multiplier = 2.0))
   @PostMapping("/ask")
-  public AskResponse ask(@RequestBody AskRequest request) throws Exception {
-    // Step 1: Embed the user's question (384 dimensions)
-    float[] queryEmbedding = chunkingPipeline.embed(request.question());
+  public ResponseEntity<?> ask(@RequestBody AskRequest request) {
+    try {
+      // Step 1: Embed the user's question via the active EmbeddingProvider
+      float[] queryEmbedding = embeddingProvider.embed(request.question());
 
-    // Step 2: Retrieve Top-K nearest chunks from pgvector
-    List<Chunk> nearest = chunkRepository.findNearest(toVectorLiteral(queryEmbedding), TOP_K);
+      // Step 2: Retrieve Top-K nearest chunks from pgvector
+      List<Chunk> nearest = chunkRepository.findNearest(toVectorLiteral(queryEmbedding), TOP_K);
 
-    // Step 3: Resolve each chunk's source document filename
-    List<ContextChunk> context =
-        nearest.stream()
-            .map(chunk -> new ContextChunk(filenameFor(chunk), chunk.getContent()))
-            .toList();
+      // Step 3: Resolve each chunk's source document filename
+      List<ContextChunk> context =
+          nearest.stream()
+              .map(chunk -> new ContextChunk(filenameFor(chunk), chunk.getContent()))
+              .toList();
 
-    // Step 4: Assemble prompt using Builder Pattern
-    String prompt =
-        new PromptBuilder()
-            .withSystemInstruction(SYSTEM_INSTRUCTION)
-            .withContext(context)
-            .withQuestion(request.question())
-            .build();
+      // Step 4: Assemble prompt using Builder Pattern
+      String prompt =
+          new PromptBuilder()
+              .withSystemInstruction(SYSTEM_INSTRUCTION)
+              .withContext(context)
+              .withQuestion(request.question())
+              .build();
 
-    // Step 5: Call Groq LLM via Spring AI ChatClient
-    String answer = chatClient.prompt(prompt).call().content();
+      // Step 5: Call Groq LLM via Spring AI ChatClient
+      String answer = chatClient.prompt(prompt).call().content();
 
-    // Step 6: Extract distinct cited document filenames
-    List<String> citedDocuments =
-        context.stream().map(ContextChunk::sourceFilename).distinct().toList();
+      // Step 6: Extract distinct cited document filenames
+      List<String> citedDocuments =
+          context.stream().map(ContextChunk::sourceFilename).distinct().toList();
 
-    return new AskResponse(answer, citedDocuments);
-  }
-
-  @Recover
-  public AskResponse recoverAsk(Exception e, AskRequest request) {
-    log.error(
-        "All retry attempts failed for question '{}': {}", request.question(), e.getMessage());
-    return new AskResponse(
-        "The AI service is currently busy or unavailable. Please try again in a moment.",
-        List.of());
+      return ResponseEntity.ok(new AskResponse(answer, citedDocuments));
+    } catch (OpenAIException | TransientEmbeddingException | NonTransientEmbeddingException e) {
+      log.error(
+          "AI service error processing question '{}': {}", request.question(), e.getMessage());
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(
+              Map.of(
+                  "error", "The AI service is temporarily unavailable. Please try again shortly."));
+    }
   }
 
   // Helper: Safely look up filename from DocumentRepository

@@ -25,6 +25,7 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY}
       HF_API_KEY: ${HF_API_KEY}
       JINA_API_KEY: ${JINA_API_KEY}
+      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-jina}
     ports:
       - "8080:8080"
     depends_on:
