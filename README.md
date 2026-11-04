@@ -38,7 +38,7 @@ A production-grade Retrieval-Augmented Generation (RAG) backend service built wi
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/tanfaizs/spring-boot-ai-project.git
+git clone https://github.com/Mannnishh/spring-boot-ai-project.git
 cd spring-boot-ai-project
 ```
 
